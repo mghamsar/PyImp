@@ -1,12 +1,15 @@
 from pybrain.supervised.trainers import BackpropTrainer
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.datasets import SupervisedDataSet
+from pybrain.structure.modules import SigmoidLayer
 import mapper
 import Tkinter
 
 import tkFileDialog
 import sys
 #./mapperRec.exe -m tkgui -b file -f tkgui.txt
+
+recurrent_flag=False; # default case is a nonrecurrent feedforward network
 
 if (len(sys.argv)==4):
         #print (sys.argv)
@@ -18,6 +21,19 @@ if (len(sys.argv)==4):
         except:
                 print ("Bad Input Arguments (#inputs, #hidden nodes, #outputs)")
                 sys.exit(1)
+elif (len(sys.argv)==5):
+	try:
+		num_inputs=int(sys.argv[1])
+		num_hidden=int(sys.argv[2])
+		num_outputs=int(sys.argv[3])
+		if (sys.argv[4] == "R"):
+			recurrent_flag=True
+		elif (sys.argv[4] == "F"):
+			recurrent_flag=False
+		print ("Input Arguments (#inputs, #hidden nodes, #outputs): " + str(num_inputs) + ", " + str(num_hidden) + ", " + str(num_outputs) + ", recurrent = " + str(recurrent_flag))
+	except:
+		print ("Bad Input Arguments (#inputs, #hidden nodes, #outputs, R/F == Recurrent/Feedforward)")
+		sys.exit(1)
 elif (len(sys.argv)>1):
         print ("Bad Input Arguments (#inputs, #hidden nodes, #outputs)")
         sys.exit(1)
@@ -137,14 +153,18 @@ def compute_callback():
                 #print(ds[1,1])
 
 def train_callback():
-        trainer = BackpropTrainer(net, ds)
-        for train_round in range (40):
-                print(trainer.train())
-                print (trainer)
+        trainer = BackpropTrainer(net, learningrate=0.01, lrdecay=1, momentum=0.0, verbose=True)
+	print 'MSE before', trainer.testOnData(ds, verbose=True)
+	trainer.trainUntilConvergence(ds, 2000)
+	print 'MSE after', trainer.testOnData(ds, verbose=True)
     
 
 def clear_dataset():
 	ds.clear()
+
+def clear_network():
+	net.reset()
+	
 def save_dataset():
         save_filename = tkFileDialog.asksaveasfilename()
         ds.saveToFile(save_filename)
@@ -163,6 +183,7 @@ def load_dataset():
         open_filename = tkFileDialog.askopenfilename()
         global ds
         ds=SupervisedDataSet.loadFromFile(open_filename)
+	print ds
         
 def save_net():
         from pybrain.tools.customxml import networkwriter
@@ -183,6 +204,8 @@ b_compute.pack()
 
 b_clear_data=Tkinter.Button(master, text="Clear data set",command = clear_dataset)
 b_clear_data.pack()
+b_clear_net=Tkinter.Button(master, text="Reset Network",command = clear_network)
+b_clear_net.pack()
 b_save_dataset=Tkinter.Button(master, text='Save Current DataSet to file',command=save_dataset)
 b_save_dataset.pack()
 b_load_dataset=Tkinter.Button(master, text='Load DataSet from File',command=load_dataset)
@@ -245,7 +268,8 @@ for l_num in range(num_outputs):
 	print ("creating output","/output/"+str(l_num))
 
 #create network
-net = buildNetwork(num_inputs,num_hidden,num_outputs,bias=True) 
+net = buildNetwork(num_inputs,num_hidden,num_outputs,bias=True, hiddenclass=SigmoidLayer, outclass=SigmoidLayer, recurrent=recurrent_flag)
+#net = buildNetwork(num_inputs,num_hidden,num_outputs,bias=True) 
 #create dataSet
 ds = SupervisedDataSet(num_inputs, num_outputs)
 	
