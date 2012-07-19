@@ -2,12 +2,13 @@ from pybrain.supervised.trainers import BackpropTrainer
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.datasets import SupervisedDataSet
 from pybrain.structure.modules import SigmoidLayer
+from pybrain.tools.customxml import networkwriter
 import mapper
 import Tkinter
+import re
 
 import tkFileDialog
 import sys
-#./mapperRec.exe -m tkgui -b file -f tkgui.txt
 
 recurrent_flag=False; # default case is a nonrecurrent feedforward network
 
@@ -47,7 +48,7 @@ else:
         num_hidden=5
         print ("No Input Arguments (#inputs, #hidden nodes, #outputs), defaulting to: " + str(num_inputs) + ", " + str(num_hidden) + ", " + str(num_outputs) )        
 #instatiate mapper
-l_map=mapper.device("learn_mapper",9000)
+l_map=mapper.device("learn_mapper",9002)
 
 l_inputs={}
 l_outputs={}
@@ -57,9 +58,8 @@ learning = 0
 compute = 0
 
 for s_index in range(num_inputs):
-	data_input[s_index+10]=0.0
-#	data_input[s_index]=0.0
-
+	data_input[s_index]=0.0
+#	data_input[s_index+10]=0.0
 for s_index in range (num_outputs):
 	data_output[s_index]=0.0
 
@@ -78,16 +78,15 @@ def main_loop():
                 print (tuple(data_input.values()))
                 print ("Outputs: ")
                 print (tuple( data_output.values()))
-#                print ("input/output values: " + (tuple(data_input.values()),tuple(data_output.values())))
-                ds.addSample(tuple(data_input.values()),tuple(data_output.values()))
-#	if learning==1:
-#		pass
-		
-		
-#	if compute ==1:
-#		pass
-	l_map.poll(0)
-	
+                ds.addSample(tuple(data_input.values()),tuple(data_output.values()))		
+	if (l_map.poll(1)) and ((compute==1) and (learning==0)):
+			#print "inputs to net: ", data_input
+			activated_out=net.activate(tuple(data_input.values()))
+			#print "Activated outs: ", activated_out
+			for out_index in range(num_outputs):
+				data_output[out_index]=activated_out[out_index]
+				sliders[out_index].set(activated_out[out_index])
+				l_outputs[out_index].update(data_output[out_index])
 
 
 def on_gui_change(x,s_index):
@@ -98,9 +97,10 @@ def on_gui_change(x,s_index):
 	
 		global data_output    
 		if (compute==0):
-			data_output[s_index]=float(x)/100.0
-			l_outputs[s_index].update(float(x)/100.0)
-			#print ("on gui change: ", data_output)	
+			data_output[s_index]=float(x)
+			l_outputs[s_index].update(float(x))
+			#print ("on gui change: ", data_output)
+			#l_map.poll(0)
 
 	except:
 		print ("WTF MATE? On Gui Change Error!")
@@ -110,7 +110,7 @@ for s_index in range(num_outputs):
 	def tc(s_index):
 		return lambda x: on_gui_change(x,s_index)
 
-	sliders[s_index]=Tkinter.Scale(master,from_=0,to=100, label='output'+str(s_index),orient=Tkinter.HORIZONTAL,length=300,command=tc(s_index))
+	sliders[s_index]=Tkinter.Scale(master,from_=0,to=1, label='output'+str(s_index),orient=Tkinter.HORIZONTAL,length=300, resolution=0.01, command=tc(s_index))
 	sliders[s_index].pack()
 
 
@@ -141,28 +141,28 @@ def compute_callback():
 		compute =0
 		print ("Compute network output is now OFF!")
 	elif compute ==0:
-		
-		#trainer.trainUntilConvergence()
 		b_compute.config(relief='sunken',text="Computing network outputs(ON)",bg='coral')
 		compute =1
-		print ("Comput network output is now ON!")
-                #print(dir(ds))
-		#print(ds['target'][0])
-                #print(ds['target'][1])
-		#print(ds[1,0])
-                #print(ds[1,1])
+		print ("Compute network output is now ON!")
 
 def train_callback():
         trainer = BackpropTrainer(net, learningrate=0.01, lrdecay=1, momentum=0.0, verbose=True)
 	print 'MSE before', trainer.testOnData(ds, verbose=True)
-	trainer.trainUntilConvergence(ds, 2000)
+	epoch_count = 0
+	while epoch_count < 1000:
+		epoch_count += 10
+		trainer.trainUntilConvergence(dataset=ds, maxEpochs=10)
+		networkwriter.NetworkWriter.writeToFile(net,'autosave.network')
 	print 'MSE after', trainer.testOnData(ds, verbose=True)
-    
+	print ("\n")
+	print 'Total epochs:', trainer.totalepochs
 
 def clear_dataset():
 	ds.clear()
 
 def clear_network():
+	#resets the module buffers but doesn't reinitialise the connection weights
+	#TODO: reinitialise network here or make a new option for it.
 	net.reset()
 	
 def save_dataset():
@@ -172,11 +172,10 @@ def save_dataset():
         csv_file.write("[inputs][outputs]\r\n")
         for inpt, tgt in ds:
                 new_str=str("{" + repr(inpt) + "," + repr(tgt) + "}")
-#                (repr(inpt) + repr(tgt))
                 new_str=new_str.strip('\n')
                 new_str=new_str.strip('\r')
                 new_str=new_str+"\r"
-                print(repr(new_str))
+                #print(repr(new_str))
                 csv_file.write(new_str)
         csv_file.close()
 def load_dataset():
@@ -186,7 +185,7 @@ def load_dataset():
 	print ds
         
 def save_net():
-        from pybrain.tools.customxml import networkwriter
+        #from pybrain.tools.customxml import networkwriter
         save_filename = tkFileDialog.asksaveasfilename()
         networkwriter.NetworkWriter.writeToFile(net,save_filename)
 def load_net():
@@ -217,7 +216,6 @@ b_load_net.pack()
                               
 
 def ontimer():
-	#print 'someshit'
 	main_loop()
   #                  check the serial port
 	master.after(10, ontimer)
@@ -231,45 +229,43 @@ def h(sig, f):
 		#print "mapper signal handler"
 		#print (sig.name, f)
 
-		s_indx=str.split(sig.name,"/input/")
-#                print sig.name
 		global data_input
 		global data_output
-		data_input[int(s_indx[1])]=float(f/100.0)
-#		print(int(s_indx[1]),data_input[int(s_indx[1])])
+		
+		#print sig.name
+		if '/in' in sig.name:
+			s_indx=str.split(sig.name,"/in")
+			
+			data_input[int(s_indx[1])]=float(f)
+			#print(int(s_indx[1]),data_input[int(s_indx[1])])
 
-#		if (learning==1):
-#                        print(int(s_indx[1]),data_input[int(s_indx[1])])
-		if ((compute==1) and (learning==0)):
-			#print ("inputs to net: ",data_input)
-			activated_out=net.activate(tuple(data_input.values()))
-			#print ("Activated outs: ", activated_out)
-			for out_index in range(num_outputs):
-				data_output[out_index]=activated_out[out_index]
-				sliders[out_index].set(int(activated_out[out_index]*100.0))
-				l_outputs[out_index].update(data_output[out_index])
+		elif '/out' in sig.name:
+			if (learning==1):
+				#print "test"
+				s_indx=str.split(sig.name,"/out")
+				data_output[int(s_indx[1])]=float(f)
+				#print(int(s_indx[1]),data_output[int(s_indx[1])])
+
+		
+		
 	except:
 		print "WTF, h handler not working"
 
 #create mapper signals (inputs)
 for l_num in range(num_inputs):
-	l_inputs[l_num]=l_map.add_input("/input/"+str(l_num+int(10)),'f',h,None,0,100.0)
-#	l_inputs[l_num]=l_map.add_input("/input/"+str(l_num),'f',h,None,0,100.0)
-	l_map.poll(0)
-	print ("creating input", "/input/"+str(l_num+int(10)))
-#	print ("creating input", "/input/"+str(l_num))
+	l_inputs[l_num]=l_map.add_input("/in%d"%l_num, 1, 'f',None,0,1.0, h)
+	#l_map.poll(0)
+	print ("creating input", "/in"+str(l_num))
 	
 #create mapper signals (outputs)
 for l_num in range(num_outputs):
-#	l_outputs[l_num]=l_map.add_output("/output/"+str(l_num+int(10)),'f',None,0,1)
-	l_outputs[l_num]=l_map.add_output("/output/"+str(l_num),'f',None,0,1)
-	l_map.poll(0)
-#	print ("creating output","/output/"+str(l_num+int(10)))
-	print ("creating output","/output/"+str(l_num))
+	l_outputs[l_num]=l_map.add_output("/out"+str(l_num), 1, 'f',None,0.0,1.0)
+	l_inputs[l_num + num_inputs]=l_map.add_input("/out%d"%l_num, 1, 'f',None,0,1.0, h)
+	#l_map.poll(0)
+	print ("creating output","/out"+str(l_num))
 
 #create network
 net = buildNetwork(num_inputs,num_hidden,num_outputs,bias=True, hiddenclass=SigmoidLayer, outclass=SigmoidLayer, recurrent=recurrent_flag)
-#net = buildNetwork(num_inputs,num_hidden,num_outputs,bias=True) 
 #create dataSet
 ds = SupervisedDataSet(num_inputs, num_outputs)
 	
@@ -278,7 +274,6 @@ ds = SupervisedDataSet(num_inputs, num_outputs)
  
 
 ontimer()
-	#master.after(500, ontimer)
 master.protocol("WM_DELETE_WINDOW", master.quit)
 master.mainloop()
 master.destroy()
