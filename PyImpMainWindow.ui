@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>820</width>
-    <height>562</height>
+    <width>834</width>
+    <height>565</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,7 +16,7 @@
   <widget class="QLabel" name="title">
    <property name="geometry">
     <rect>
-     <x>10</x>
+     <x>20</x>
      <y>10</y>
      <width>341</width>
      <height>41</height>
@@ -36,7 +36,7 @@
   <widget class="QWidget" name="gridLayoutWidget">
    <property name="geometry">
     <rect>
-     <x>10</x>
+     <x>20</x>
      <y>130</y>
      <width>262</width>
      <height>80</height>
@@ -44,7 +44,7 @@
    </property>
    <layout class="QGridLayout" name="gridLayout">
     <item row="0" column="0">
-     <widget class="QPushButton" name="pushButton_2">
+     <widget class="QPushButton" name="loadDataButton">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
         <horstretch>0</horstretch>
@@ -57,7 +57,7 @@
      </widget>
     </item>
     <item row="1" column="0">
-     <widget class="QPushButton" name="pushButton_4">
+     <widget class="QPushButton" name="loadMappingButton">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
         <horstretch>0</horstretch>
@@ -70,7 +70,7 @@
      </widget>
     </item>
     <item row="0" column="1">
-     <widget class="QPushButton" name="pushButton_3">
+     <widget class="QPushButton" name="saveDataButton">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
         <horstretch>0</horstretch>
@@ -83,7 +83,7 @@
      </widget>
     </item>
     <item row="1" column="1">
-     <widget class="QPushButton" name="pushButton">
+     <widget class="QPushButton" name="saveMappingButton">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
         <horstretch>0</horstretch>
@@ -100,17 +100,17 @@
   <widget class="QWidget" name="horizontalLayoutWidget">
    <property name="geometry">
     <rect>
-     <x>360</x>
+     <x>370</x>
      <y>39</y>
-     <width>459</width>
-     <height>101</height>
+     <width>451</width>
+     <height>71</height>
     </rect>
    </property>
    <layout class="QHBoxLayout" name="horizontalLayout">
     <item>
-     <widget class="QPushButton" name="pushButton_5">
+     <widget class="QPushButton" name="getDataButton">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+       <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
@@ -171,9 +171,9 @@
      </widget>
     </item>
     <item>
-     <widget class="QPushButton" name="pushButton_6">
+     <widget class="QPushButton" name="trainMappingButton">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+       <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
@@ -234,9 +234,9 @@
      </widget>
     </item>
     <item>
-     <widget class="QPushButton" name="pushButton_7">
+     <widget class="QPushButton" name="processOutputButton">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+       <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
@@ -301,15 +301,15 @@
   <widget class="QWidget" name="horizontalLayoutWidget_2">
    <property name="geometry">
     <rect>
-     <x>570</x>
-     <y>140</y>
+     <x>580</x>
+     <y>120</y>
      <width>231</width>
-     <height>80</height>
+     <height>61</height>
     </rect>
    </property>
    <layout class="QHBoxLayout" name="horizontalLayout_2">
     <item>
-     <widget class="QPushButton" name="pushButton_8">
+     <widget class="QPushButton" name="clearDataButton">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
         <horstretch>0</horstretch>
@@ -335,7 +335,7 @@
      </widget>
     </item>
     <item>
-     <widget class="QPushButton" name="pushButton_9">
+     <widget class="QPushButton" name="resetClassifierButton">
       <property name="sizePolicy">
        <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
         <horstretch>0</horstretch>
@@ -362,30 +362,30 @@
     </item>
    </layout>
   </widget>
-  <widget class="QGraphicsView" name="graphicsView">
+  <widget class="QGraphicsView" name="inputSignals">
    <property name="geometry">
     <rect>
-     <x>10</x>
+     <x>20</x>
      <y>360</y>
      <width>256</width>
      <height>192</height>
     </rect>
    </property>
   </widget>
-  <widget class="QGraphicsView" name="graphicsView_2">
+  <widget class="QGraphicsView" name="middleSignals">
    <property name="geometry">
     <rect>
-     <x>280</x>
+     <x>290</x>
      <y>360</y>
      <width>256</width>
      <height>192</height>
     </rect>
    </property>
   </widget>
-  <widget class="QGraphicsView" name="graphicsView_3">
+  <widget class="QGraphicsView" name="outputSignals">
    <property name="geometry">
     <rect>
-     <x>550</x>
+     <x>560</x>
      <y>360</y>
      <width>256</width>
      <height>192</height>
@@ -395,9 +395,9 @@
   <widget class="QWidget" name="verticalLayoutWidget">
    <property name="geometry">
     <rect>
-     <x>10</x>
+     <x>20</x>
      <y>70</y>
-     <width>231</width>
+     <width>261</width>
      <height>51</height>
     </rect>
    </property>
@@ -423,22 +423,34 @@
   <widget class="QWidget" name="horizontalLayoutWidget_3">
    <property name="geometry">
     <rect>
-     <x>280</x>
-     <y>320</y>
-     <width>259</width>
+     <x>290</x>
+     <y>310</y>
+     <width>251</width>
      <height>41</height>
     </rect>
    </property>
    <layout class="QHBoxLayout" name="horizontalLayout_3">
     <item>
-     <widget class="QCheckBox" name="checkBox">
+     <widget class="QCheckBox" name="middleLayerEnable">
       <property name="text">
        <string>Enable Middle Layer</string>
       </property>
      </widget>
     </item>
     <item>
-     <widget class="QPushButton" name="pushButton_10">
+     <widget class="QPushButton" name="setSlidersButton">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>30</width>
+        <height>0</height>
+       </size>
+      </property>
       <property name="text">
        <string>Set Sliders</string>
       </property>
