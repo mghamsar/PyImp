@@ -71,6 +71,7 @@ class PyImp(QWidget):
         if state == Qt.Checked:
             print "Middle Sliders Now Enabled"
             self.setSlidersButton.show()
+            self.setSlidersButton.clicked.connect(self.on_setSlidersButton_clicked)
 
         else:
             print "Middle Sliders Now Disabled"
@@ -82,29 +83,81 @@ class PyImp(QWidget):
         file_ui.open(QFile.ReadOnly)
         self.mainWidget = loader.load(file_ui, self)
         self.setWindowTitle("Implicit Mapper")   
-        
-        self.mainWidget.show()
         file_ui.close()
 
     def on_setSlidersButton_clicked(self):
+
+        self.slidersWindow = QMainWindow()
+        self.slidersWindow.setGeometry(300,200,500,400)
+        self.slidersWindow.setWindowTitle("Middle Layer Values")
+
+        self.chooseNSliders = QLineEdit("No. Sliders")
+        self.chooseNSliders.setGeometry(10,32,100,25)
+        self.chooseNSliders.setParent(self.slidersWindow)
+        
+        self.setButton = QPushButton("OK")
+        self.setButton.setGeometry(self.chooseNSliders.width()+self.chooseNSliders.x()+5,32,50,25)
+        self.setButton.setParent(self.slidersWindow)
+
+
+        self.layoutNo = QHBoxLayout()
+        self.layoutNo.addWidget(self.chooseNSliders)
+        self.layoutNo.addWidget(self.setButton)
+
+        self.chooseNSlidersLabel = QLabel("Set The Number of Middle Sliders")
+        self.chooseNSlidersLabel.setGeometry(10,10,300,25)
+        self.chooseNSlidersLabel.setParent(self.slidersWindow)
+
+        self.layoutTop = QVBoxLayout()
+        self.layoutTop.addLayout(self.layoutNo)
+        self.layoutTop.addWidget(self.chooseNSlidersLabel)
+
+        self.layoutSliders = QVBoxLayout()
+        self.layoutSliders.setSpacing(5)
+        self.layoutSliders.addLayout(self.layoutTop)
+
+        self.chooseNSliders.textEdited.connect(self.createNoSliders)
+
+        self.slidersWindow.show()
+
+    def createNoSliders(self):
+        
+        #print "Creating Sliders Now From Sender"
+        self.NoSlides = int(self.chooseNSliders.text())
+        self.setButton.clicked.connect(self.createSliders)
+
+    def createSliders(self):
+        
+        self.slidersWindow.hide()
+
+        num_outputs = self.NoSlides
         sliders={}
 
-        master=Tkinter.Tk()
-        master.title("Setting Sliders")
-        master.resizable(height=True, width=True)
-        master.geometry("500x500")
+        if (len(self.slidersWindow.findChildren(QSlider)) != 0):
+            print len(self.slidersWindow.findChildren(QSlider))
+            
+            for key in sliders.iterkeys():
+                sliders[key].setParent(None)
+                self.layoutSliders.removeWidget(sliders[key])
+                del sliders[key]
 
-        for s_index in range(num_outputs):
-            def tc(s_index):
-                return lambda x: on_gui_change(x,s_index)
-
-            sliders[s_index]=Tkinter.Scale(master,from_=0,to=1, label='output'+str(s_index),orient=Tkinter.HORIZONTAL,length=300, resolution=0.01, command=tc(s_index))
-            sliders[s_index].pack()
         
-        master.protocol("WM_DELETE_WINDOW", master.quit)
-        master.mainloop()
-        master.destroy()
-        del master
+        for s_index in range(self.NoSlides):
+            print range(self.NoSlides)
+
+            sliders[s_index] = QSlider()
+            if s_index == 0: 
+                sliders[s_index].setGeometry(10,70,self.slidersWindow.width()-20,10)
+            else: 
+                sliders[s_index].setGeometry(10,sliders[s_index-1].y()+20,self.slidersWindow.width()-20,10)
+
+            self.layoutSliders.addWidget(sliders[s_index])
+            sliders[s_index].setOrientation(Qt.Horizontal)
+            sliders[s_index].setParent(self.slidersWindow)
+
+        self.slidersWindow.show()
+
+        # #self.mainloop()
 
     def main_loop(self):
         global ds
