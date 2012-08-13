@@ -1,12 +1,12 @@
 import sys
 #import mapper
 
-#import pybrain
-# from pybrain.supervised.trainers import BackpropTrainer
-# from pybrain.tools.shortcuts import buildNetwork
-# from pybrain.datasets import SupervisedDataSet
-# from pybrain.structure.modules import SigmoidLayer
-# from pybrain.tools.customxml import networkwriter
+import pybrain
+from pybrain.supervised.trainers import BackpropTrainer
+from pybrain.tools.shortcuts import buildNetwork
+from pybrain.datasets import SupervisedDataSet
+from pybrain.structure.modules import SigmoidLayer
+from pybrain.tools.customxml import networkwriter
 
 import PySide
 from PySide.QtCore import *
@@ -29,7 +29,7 @@ class PyImp(QWidget):
         QApplication.setStyle(QStyleFactory.create('Cleanlooks'))
 
         widgets = self.findChildren(QWidget)
-        print widgets
+        print "WIDGETS", widgets
 
         #Load UI created in QT Designer
         self.loadCustomWidget("PyImpMainWindow.ui")
@@ -39,16 +39,15 @@ class PyImp(QWidget):
         loadMappingButton = self.findChild(QWidget,"loadMappingButton")
         saveMappingButton = self.findChild(QWidget,"saveMappingButton")
 
-        captureDataButton = self.findChild(QWidget,"captureData")
-        trainMappingButton = self.findChild(QWidget,"trainMapping")
-        resetClassifierButton = self.findChild(QWidget,"resetClassifier")
-        clearDataButton = self.findChild(QWidget,"clearData")
+        getDataButton = self.findChild(QWidget,"getDataButton")
+        trainMappingButton = self.findChild(QWidget,"trainMappingButton")
+        resetClassifierButton = self.findChild(QWidget,"resetClassifierButton")
+        clearDataButton = self.findChild(QWidget,"clearDataButton")
 
-        middleSlidersEnable = self.findChild(QWidget,"middleSlidersEnable")
-        print middleSlidersEnable
+        middleLayerEnable = self.findChild(QWidget,"middleLayerEnable")
 
-        self.setSliderValuesButton = self.findChild(QWidget,"setSliderValuesButton")
-        self.setSliderValuesButton.hide()
+        self.setSlidersButton = self.findChild(QWidget,"setSlidersButton")
+        self.setSlidersButton.hide()
 
         chooseClassifier = self.findChild(QWidget,"chooseClassifierComboBox")
 
@@ -57,23 +56,25 @@ class PyImp(QWidget):
         saveDataButton.clicked.connect(self.save_dataset)
         loadMappingButton.clicked.connect(self.load_net)
         saveMappingButton.clicked.connect(self.save_net)
-        captureDataButton.clicked.connect(self.learn_callback)
+        getDataButton.clicked.connect(self.learn_callback)
         trainMappingButton.clicked.connect(self.train_callback)
         resetClassifierButton.clicked.connect(self.clear_network)
         clearDataButton.clicked.connect(self.clear_dataset)
 
-        middleSlidersEnable.toggle()
-        middleSlidersEnable.stateChanged.connect(self.enableSliders)
+        middleLayerEnable.toggle()
+        middleLayerEnable.stateChanged.connect(self.enableSliders)
+
+        self.show()
 
     def enableSliders(self,state):
 
         if state == Qt.Checked:
             print "Middle Sliders Now Enabled"
-            self.setSliderValuesButton.show()
+            self.setSlidersButton.show()
 
         else:
             print "Middle Sliders Now Disabled"
-            self.setSliderValuesButton.hide()        
+            self.setSlidersButton.hide()        
 
     def loadCustomWidget(self,UIfile):
         loader = QUiLoader()
@@ -85,7 +86,7 @@ class PyImp(QWidget):
         self.mainWidget.show()
         file_ui.close()
 
-    def on_setSliderValuesButton_clicked(self):
+    def on_setSlidersButton_clicked(self):
         sliders={}
 
         master=Tkinter.Tk()
