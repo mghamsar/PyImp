@@ -1,12 +1,13 @@
 import sys
-#import mapper
+import mapper
+import time
 
 import pybrain
 from pybrain.supervised.trainers import BackpropTrainer
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.datasets import SupervisedDataSet
 from pybrain.structure.modules import SigmoidLayer
-#from pybrain.tools.customxml import networkwriter
+from pybrain.tools import *
 
 import PySide
 from PySide.QtCore import *
@@ -14,34 +15,81 @@ from PySide.QtGui import *
 from PySide.QtWebKit import *
 from PySide.QtUiTools import *
 
-import Tkinter
-import re
-import tkFileDialog
-
 class PyImpNetwork():
 
     def __init__(self):
-        self.ds = 0
-        self.net = 0
+        
+        #flags for program learning states
         self.learning = 0
         self.compute = 0
+        self.recurrent_flag=False; # default case is a nonrecurrent feedforward network
 
-    def load_dataset(self):
-        open_filename = tkFileDialog.askopenfilename()
-        self.ds=SupervisedDataSet.loadFromFile(open_filename)
+        #number of mapper inputs and outputs
+        self.num_inputs = 0
+        self.num_outputs = 0
+        self.num_hidden = 0
+
+        self.l_inputs={}
+        self.l_outputs={}
+        self.data_input={}
+        self.data_output={}
+
+        # Set initial Data Input Output values to 0
+        for s_index in range(self.num_inputs):
+            self.data_input[s_index]=0.0
+        for s_index in range (self.num_outputs):
+            self.data_output[s_index]=0.0
+
+        #instatiate mapper
+        self.learnMapperDevice=mapper.device("Implicit_LearnMapper",9002)
+
+        #create mapper signals (outputs)
+        for l_num in range(self.num_outputs):
+            self.l_outputs[l_num]=self.learnMapperDevice.add_output("/out"+str(l_num), 1, 'f',None,0.0,1.0)
+            self.l_inputs[l_num + self.num_inputs]=self.learnMapperDevice.add_input("/out%d"%l_num, 1, 'f',None,0,1.0, self.h)
+            print ("creating output","/out"+str(l_num))
+
+        #create mapper signals (inputs)
+        for l_num in range(self.num_inputs):
+            self.l_inputs[l_num]=self.learnMapperDevice.add_input("/in%d"%l_num, 1, 'f',None,0,1.0, self.h)
+            #learnMapperDevice.poll(0)
+            print ("creating input", "/in"+str(l_num))
+
+        #create network
+        self.net = buildNetwork(self.num_inputs,self.num_hidden,self.num_outputs,bias=True, hiddenclass=SigmoidLayer, outclass=SigmoidLayer, recurrent=self.recurrent_flag)
+        #create dataSet
+        self.ds = SupervisedDataSet(self.num_inputs, self.num_outputs)
+
+    def setNumInputs(self,n_inputs):
+        self.num_inputs = n_inputs
+
+    def setNumeOutputs(self,n_outputs):
+        self.num_outputs = n_outputs
+
+    def setNumHiddenNodes(self,n_hidden):
+        self.num_hidden = n_hidden
+
+    def setReccurentFlag(self,flag):
+        if (flag == "R"):
+            self.recurrent_flag=True
+        elif (flag == "F"):
+            self.recurrent_flag=False
+  
+    def load_dataset(self,open_filename):
+        self.ds = SupervisedDataSet.loadFromFile(open_filename)
         print self.ds
 
-    def save_dataset(self):
-        save_filename = tkFileDialog.asksaveasfilename()
-        self.ds.saveToFile(save_filename)
-        csv_file=open(save_filename+".csv",'w')
-        csv_file.write("[inputs][outputs]\r\n")
-        for inpt, tgt in ds:
+    def save_dataset(self,filename):
+
+        if str(filename[0]) != '': 
+            csv_file = open(filename[0]+".csv", "w")
+            csv_file.write("[inputs][outputs]\r\n")
+        
+        for inpt, tgt in self.ds:
                 new_str=str("{" + repr(inpt) + "," + repr(tgt) + "}")
                 new_str=new_str.strip('\n')
                 new_str=new_str.strip('\r')
                 new_str=new_str+"\r"
-                #print(repr(new_str))
                 csv_file.write(new_str)
         csv_file.close()
 
@@ -67,12 +115,12 @@ class PyImpNetwork():
     def learn_callback(self):
 
         if self.learning == 1:
-            b_learn.config(relief='raised',text="Acquire Training Data (OFF)",bg='gray')
+            #PyImpUI.trainMappingButton.setText("Learning is Now On")
             self.learning=0
             print ("learning is now OFF")
 
         elif self.learning ==0:
-            b_learn.config(relief='sunken',text="Acquiring Training Data (ON)",bg='red')
+            #PyImpUI.trainMappingButton.setText("Learning is Now Off")
             self.learning=1
             print ("learning is now ON")
 
@@ -81,26 +129,26 @@ class PyImpNetwork():
     def compute_callback(self):
 
         if self.compute==1:
-            b_compute.config(relief='raised',text="Press to compute network outputs (OFF)",bg='gray')
             self.compute =0
             print ("Compute network output is now OFF!")
         elif self.compute ==0:
-            b_compute.config(relief='sunken',text="Computing network outputs(ON)",bg='coral')
             self.compute =1
             print ("Compute network output is now ON!")
 
     def train_callback(self):
-        trainer = BackpropTrainer(net, learningrate=0.01, lrdecay=1, momentum=0.0, verbose=True)
+        self.trainer = BackpropTrainer(self.net, learningrate=0.01, lrdecay=1, momentum=0.0, verbose=True)
         
-        print 'MSE before', trainer.testOnData(ds, verbose=True)
+        print 'MSE before', self.trainer.testOnData(self.ds, verbose=True)
+        
         epoch_count = 0
         while epoch_count < 1000:
             epoch_count += 10
-            trainer.trainUntilConvergence(dataset=ds, maxEpochs=10)
-            networkwriter.NetworkWriter.writeToFile(net,'autosave.network')
-        print 'MSE after', trainer.testOnData(ds, verbose=True)
+            self.trainer.trainUntilConvergence(dataset=self.ds, maxEpochs=10)
+            networkwriter.NetworkWriter.writeToFile(self.net,'autosave.network')
+        
+        print 'MSE after', self.trainer.testOnData(ds, verbose=True)
         print ("\n")
-        print 'Total epochs:', trainer.totalepochs
+        print 'Total epochs:', self.trainer.totalepochs
 
     def on_gui_change(self,x,s_index):
             try:
@@ -118,7 +166,8 @@ class PyImpNetwork():
                     print ("Outputs: ")
                     print (tuple( data_output.values()))
                     self.ds.addSample(tuple(data_input.values()),tuple(data_output.values()))        
-        if (l_map.poll(1)) and ((self.compute==1) and (learning==0)):
+        
+        if (self.learnMapperDevice.poll(1)) and ((self.compute==1) and (learning==0)):
                 #print "inputs to net: ", data_input
                 activated_out=net.activate(tuple(data_input.values()))
                 #print "Activated outs: ", activated_out
@@ -128,8 +177,26 @@ class PyImpNetwork():
                     l_outputs[out_index].update(data_output[out_index])
     
     def ontimer(self):
-        main_loop()
-        master.after(10, ontimer)
+        self.main_loop()
+        #time.sleep(10)
+
+    # mapper signal handler (updates data_input[sig_indx]=new_float_value)
+    def h(self,sig, f):
+        try:
+            if '/in' in sig.name:
+                s_indx=str.split(sig.name,"/in")
+                
+                data_input[int(s_indx[1])]=float(f)
+                #print(int(s_indx[1]),data_input[int(s_indx[1])])
+
+            elif '/out' in sig.name:
+                if (learning==1):
+                    #print "test"
+                    s_indx=str.split(sig.name,"/out")
+                    data_output[int(s_indx[1])]=float(f)
+                    #print(int(s_indx[1]),data_output[int(s_indx[1])])
+        except:
+            print "WTF, h handler not working"
 
 ####################################################################################################################################
 
@@ -138,10 +205,9 @@ class PyImpUI(QWidget):
     
     def __init__(self):
         super(PyImpUI, self).__init__()
-
+        self.initUI()
         self.CurrentNetwork = PyImpNetwork()
 
-        self.initUI()
         
     def initUI(self):
 
@@ -153,38 +219,38 @@ class PyImpUI(QWidget):
         #Load UI created in QT Designer
         self.loadCustomWidget("PyImpMainWindow.ui")
 
-        loadDataButton = self.findChild(QWidget,"loadDataButton")
-        saveDataButton = self.findChild(QWidget,"saveDataButton")
-        loadMappingButton = self.findChild(QWidget,"loadMappingButton")
-        saveMappingButton = self.findChild(QWidget,"saveMappingButton")
+        self.loadDataButton = self.findChild(QWidget,"loadDataButton")
+        self.saveDataButton = self.findChild(QWidget,"saveDataButton")
+        self.loadMappingButton = self.findChild(QWidget,"loadMappingButton")
+        self.saveMappingButton = self.findChild(QWidget,"saveMappingButton")
 
-        getDataButton = self.findChild(QWidget,"getDataButton")
-        trainMappingButton = self.findChild(QWidget,"trainMappingButton")
-        processOutputButton = self.findChild(QWidget,"processOutputButton")
-        resetClassifierButton = self.findChild(QWidget,"resetClassifierButton")
-        clearDataButton = self.findChild(QWidget,"clearDataButton")
+        self.getDataButton = self.findChild(QWidget,"getDataButton")
+        self.trainMappingButton = self.findChild(QWidget,"trainMappingButton")
+        self.processOutputButton = self.findChild(QWidget,"processOutputButton")
+        self.resetClassifierButton = self.findChild(QWidget,"resetClassifierButton")
+        self.clearDataButton = self.findChild(QWidget,"clearDataButton")
 
-        middleLayerEnable = self.findChild(QWidget,"middleLayerEnable")
+        self.middleLayerEnable = self.findChild(QWidget,"middleLayerEnable")
 
         self.setSlidersButton = self.findChild(QWidget,"setSlidersButton")
         self.setSlidersButton.hide()
 
-        chooseClassifier = self.findChild(QWidget,"chooseClassifierComboBox")
+        self.chooseClassifier = self.findChild(QWidget,"chooseClassifierComboBox")
 
         # Activate the Buttons in the Initial Screen
-        loadDataButton.clicked.connect(self.loadQDataset)
-        saveDataButton.clicked.connect(self.saveQDataset)
-        loadMappingButton.clicked.connect(self.loadQNetwork)
-        saveMappingButton.clicked.connect(self.saveQNetwork)
-        getDataButton.clicked.connect(self.learnQCallback)
-        trainMappingButton.clicked.connect(self.trainQCallback)
-        resetClassifierButton.clicked.connect(self.clearQNetwork)
-        clearDataButton.clicked.connect(self.clearQDataSet)
-        processOutputButton.clicked.connect(self.computeQCallback)
+        self.loadDataButton.clicked.connect(self.loadQDataset)
+        self.saveDataButton.clicked.connect(self.saveQDataset)
+        self.loadMappingButton.clicked.connect(self.loadQNetwork)
+        self.saveMappingButton.clicked.connect(self.saveQNetwork)
+        self.getDataButton.clicked.connect(self.learnQCallback)
+        self.trainMappingButton.clicked.connect(self.trainQCallback)
+        self.resetClassifierButton.clicked.connect(self.clearQNetwork)
+        self.clearDataButton.clicked.connect(self.clearQDataSet)
+        self.processOutputButton.clicked.connect(self.computeQCallback)
 
-        middleLayerEnable.toggle()
-        middleLayerEnable.stateChanged.connect(self.enableSliders)
-        middleLayerEnable.setCheckState(Qt.Unchecked)
+        self.middleLayerEnable.toggle()
+        self.middleLayerEnable.stateChanged.connect(self.enableSliders)
+        self.middleLayerEnable.setCheckState(Qt.Unchecked)
 
         self.show()
 
@@ -263,7 +329,6 @@ class PyImpUI(QWidget):
                 sliders[key].setParent(None)
                 self.layoutSliders.removeWidget(sliders[key])
                 del sliders[key]
-
         
         for s_index in range(self.NoSlides):
             print range(self.NoSlides)
@@ -283,20 +348,29 @@ class PyImpUI(QWidget):
         self.slidersWindow.show()
         self.setButton.setDisabled(1)
 
-        # create mapper signals (outputs)
-        for l_num in range(num_outputs):
-            l_outputs[l_num]=l_map.add_output("/out"+str(l_num), 1, 'f',None,0.0,1.0)
-            l_inputs[l_num + num_inputs]=l_map.add_input("/out%d"%l_num, 1, 'f',None,0,1.0, h)
-            #l_map.poll(0)
-            print ("creating output","/out"+str(l_num))
-
-        # self.mainloop()
-
     def loadQDataset(self):
-        PyImpNetwork.load_dataset(self.CurrentNetwork)
+
+        # Create Dialog to load the dataset from the directory
+        loadDialog = QFileDialog()
+        loadDialog.setFileMode(QFileDialog.ExistingFile)
+        loadDialog.setAcceptMode(QFileDialog.AcceptOpen)
+        loadDialog.setWindowTitle("Load Dataset")
+        loadDialog.show()
+
+        filename = loadDialog.getOpenFileName()
+        PyImpNetwork.load_dataset(self.CurrentNetwork,filename)
 
     def saveQDataset(self):
-        PyImpNetwork.save_dataset(self.CurrentNetwork)
+
+        # Create Dialog to save the file in directory
+        saveDialog = QFileDialog()
+        saveDialog.setFileMode(QFileDialog.AnyFile)
+        saveDialog.setAcceptMode(QFileDialog.AcceptSave)
+        saveDialog.setWindowTitle("Save Dataset")
+        saveDialog.show()
+
+        filename = saveDialog.getSaveFileName()
+        PyImpNetwork.save_dataset(self.CurrentNetwork,filename)
     
     def clearQDataSet(self):
         PyImpNetwork.clear_dataset(self.CurrentNetwork)
@@ -318,109 +392,53 @@ class PyImpUI(QWidget):
 
     def computeQCallback(self):
         PyImpNetwork.compute_callback(self.CurrentNetwork)
-        
 
-    #mapper signal handler (updates data_input[sig_indx]=new_float_value)
-    def h(self,sig, f):
-        try:
-            global data_input
-            global data_output
-            
-            if '/in' in sig.name:
-                s_indx=str.split(sig.name,"/in")
-                
-                data_input[int(s_indx[1])]=float(f)
-                #print(int(s_indx[1]),data_input[int(s_indx[1])])
 
-            elif '/out' in sig.name:
-                if (learning==1):
-                    #print "test"
-                    s_indx=str.split(sig.name,"/out")
-                    data_output[int(s_indx[1])]=float(f)
-                    #print(int(s_indx[1]),data_output[int(s_indx[1])])
-        except:
-            print "WTF, h handler not working"
-
+####################################################################################################################################################
+####################################################################################################################################################
 
 def main():
-
-    recurrent_flag=False; # default case is a nonrecurrent feedforward network
-
-    # if (len(sys.argv)==4):
-    #         #print (sys.argv)
-    #         try:
-    #                 num_inputs=int(sys.argv[1])
-    #                 num_hidden=int(sys.argv[2])
-    #                 num_outputs=int(sys.argv[3])
-    #                 print ("Input Arguments (#inputs, #hidden nodes, #outputs): " + str(num_inputs) + ", " + str(num_hidden) + ", " + str(num_outputs) )        
-    #         except:
-    #                 print ("Bad Input Arguments (#inputs, #hidden nodes, #outputs)")
-    #                 sys.exit(1)
-    # elif (len(sys.argv)==5):
-    #     try:
-    #         num_inputs=int(sys.argv[1])
-    #         num_hidden=int(sys.argv[2])
-    #         num_outputs=int(sys.argv[3])
-    #         if (sys.argv[4] == "R"):
-    #             recurrent_flag=True
-    #         elif (sys.argv[4] == "F"):
-    #             recurrent_flag=False
-    #         print ("Input Arguments (#inputs, #hidden nodes, #outputs): " + str(num_inputs) + ", " + str(num_hidden) + ", " + str(num_outputs) + ", recurrent = " + str(recurrent_flag))
-    #     except:
-    #         print ("Bad Input Arguments (#inputs, #hidden nodes, #outputs, R/F == Recurrent/Feedforward)")
-    #         sys.exit(1)
-    # elif (len(sys.argv)>1):
-    #         print ("Bad Input Arguments (#inputs, #hidden nodes, #outputs)")
-    #         sys.exit(1)
-
-    # else:
-    #         #number of network inputs
-    #         num_inputs=8
-    #         #number of network outputs
-    #         num_outputs=8
-    #         #number of hidden nodes
-    #         num_hidden=5
-    #         print ("No Input Arguments (#inputs, #hidden nodes, #outputs), defaulting to: " + str(num_inputs) + ", " + str(num_hidden) + ", " + str(num_outputs) )        
-    # #instatiate mapper
-    # l_map=mapper.device("learn_mapper",9002)
-
-    # l_inputs={}
-    # l_outputs={}
-    # data_input={}
-    # data_output={}
-
-    # for s_index in range(num_inputs):
-    #     data_input[s_index]=0.0
-    # for s_index in range (num_outputs):
-    #     data_output[s_index]=0.0
 
     # Run GUI Application
     app = QApplication(sys.argv)
     ex = PyImpUI()
 
-    # #create mapper signals (inputs)
-    # for l_num in range(num_inputs):
-    #     l_inputs[l_num]=l_map.add_input("/in%d"%l_num, 1, 'f',None,0,1.0, h)
-    #     #l_map.poll(0)
-    #     print ("creating input", "/in"+str(l_num))
-        
-    # #create mapper signals (outputs)
-    # for l_num in range(num_outputs):
-    #     l_outputs[l_num]=l_map.add_output("/out"+str(l_num), 1, 'f',None,0.0,1.0)
-    #     l_inputs[l_num + num_inputs]=l_map.add_input("/out%d"%l_num, 1, 'f',None,0,1.0, h)
-    #     #l_map.poll(0)
-    #     print ("creating output","/out"+str(l_num))
+    #Obtain Initial Number of Inputs and Outputs for Device
+    if (len(sys.argv)==4):
+        try:
+            ex.CurrentNetwork.setNumInputs(int(sys.argv[1]))
+            ex.CurrentNetwork.setNumHiddenNodes(int(sys.argv[2]))
+            ex.CurrentNetwork.setNumeOutputs(int(sys.argv[3]))
+        except:
+            print ("Bad Input Arguments (#inputs, #hidden nodes, #outputs)")
+            sys.exit(1)
 
-    # #create network
-    # net = buildNetwork(num_inputs,num_hidden,num_outputs,bias=True, hiddenclass=SigmoidLayer, outclass=SigmoidLayer, recurrent=recurrent_flag)
-    # #create dataSet
-    # ds = SupervisedDataSet(num_inputs, num_outputs)
+    elif (len(sys.argv)==5):
+        try:
+            ex.CurrentNetwork.setNumInputs(int(sys.argv[1]))
+            ex.CurrentNetwork.setNumHiddenNodes(int(sys.argv[2]))
+            ex.CurrentNetwork.setNumeOutputs(int(sys.argv[3]))
+            ex.CurrentNetwork.setReccurentFlag(int(sys.argv[4]))
+        except:
+            print ("Bad Input Arguments (#inputs, #hidden nodes, #outputs, R/F == Recurrent/Feedforward Network)")
+            sys.exit(1)
 
-    # ontimer()
+    elif (len(sys.argv)>1):
+            print ("Bad Input Arguments (#inputs, #hidden nodes, #outputs)")
+            sys.exit(1)
 
+    else:
+        ex.CurrentNetwork.setNumInputs(8)
+        ex.CurrentNetwork.setNumHiddenNodes(8)
+        ex.CurrentNetwork.setNumeOutputs(8)
+        print "No Input Arguments, setting defaults to 8 5 8"       
+
+    print ("Input Arguments (#inputs, #hidden nodes, #outputs): " + str(ex.CurrentNetwork.num_inputs) + ", " + str(ex.CurrentNetwork.num_hidden) + ", " + str(ex.CurrentNetwork.num_outputs))        
+
+    ex.CurrentNetwork.ontimer()
     sys.exit(app.exec_())
 
-############################################################      
+##################################################################################################################################################
 # Run Main Function
 if __name__ == '__main__':
     main()
