@@ -18,10 +18,129 @@ import Tkinter
 import re
 import tkFileDialog
 
-class PyImp(QWidget):
+class PyImpNetwork():
+
+    def __init__(self):
+        self.ds = 0
+        self.net = 0
+        self.learning = 0
+        self.compute = 0
+
+    def load_dataset(self):
+        open_filename = tkFileDialog.askopenfilename()
+        self.ds=SupervisedDataSet.loadFromFile(open_filename)
+        print self.ds
+
+    def save_dataset(self):
+        save_filename = tkFileDialog.asksaveasfilename()
+        self.ds.saveToFile(save_filename)
+        csv_file=open(save_filename+".csv",'w')
+        csv_file.write("[inputs][outputs]\r\n")
+        for inpt, tgt in ds:
+                new_str=str("{" + repr(inpt) + "," + repr(tgt) + "}")
+                new_str=new_str.strip('\n')
+                new_str=new_str.strip('\r')
+                new_str=new_str+"\r"
+                #print(repr(new_str))
+                csv_file.write(new_str)
+        csv_file.close()
+
+    def save_net(self):
+        save_filename = tkFileDialog.asksaveasfilename()
+        networkwriter.NetworkWriter.writeToFile(net,save_filename)
+
+    def load_net(self):
+        from pybrain.tools.customxml import networkreader
+        open_filename = tkFileDialog.askopenfilename()
+        self.net=networkreader.NetworkReader.readFrom(open_filename)
+
+    def clear_dataset(self):
+        if self.ds != 0:
+            self.ds.clear()
+
+
+    def clear_network(self):
+        #resets the module buffers but doesn't reinitialise the connection weights
+        #TODO: reinitialise network here or make a new option for it.
+        self.net.reset()
+
+    def learn_callback(self):
+
+        if self.learning == 1:
+            b_learn.config(relief='raised',text="Acquire Training Data (OFF)",bg='gray')
+            self.learning=0
+            print ("learning is now OFF")
+
+        elif self.learning ==0:
+            b_learn.config(relief='sunken',text="Acquiring Training Data (ON)",bg='red')
+            self.learning=1
+            print ("learning is now ON")
+
+        print ("learning is", self.learning)
+
+    def compute_callback(self):
+
+        if self.compute==1:
+            b_compute.config(relief='raised',text="Press to compute network outputs (OFF)",bg='gray')
+            self.compute =0
+            print ("Compute network output is now OFF!")
+        elif self.compute ==0:
+            b_compute.config(relief='sunken',text="Computing network outputs(ON)",bg='coral')
+            self.compute =1
+            print ("Compute network output is now ON!")
+
+    def train_callback(self):
+        trainer = BackpropTrainer(net, learningrate=0.01, lrdecay=1, momentum=0.0, verbose=True)
+        
+        print 'MSE before', trainer.testOnData(ds, verbose=True)
+        epoch_count = 0
+        while epoch_count < 1000:
+            epoch_count += 10
+            trainer.trainUntilConvergence(dataset=ds, maxEpochs=10)
+            networkwriter.NetworkWriter.writeToFile(net,'autosave.network')
+        print 'MSE after', trainer.testOnData(ds, verbose=True)
+        print ("\n")
+        print 'Total epochs:', trainer.totalepochs
+
+    def on_gui_change(self,x,s_index):
+            try:
+                if (self.compute==0):
+                    data_output[s_index]=float(x)
+                    l_outputs[s_index].update(float(x))
+            except:
+                print ("WTF MATE? On Gui Change Error!")
+                raise
+
+    def main_loop(self):
+        if ((self.learning==1) and (self.compute ==0)):
+                    print ("Inputs: ")
+                    print (tuple(data_input.values()))
+                    print ("Outputs: ")
+                    print (tuple( data_output.values()))
+                    self.ds.addSample(tuple(data_input.values()),tuple(data_output.values()))        
+        if (l_map.poll(1)) and ((self.compute==1) and (learning==0)):
+                #print "inputs to net: ", data_input
+                activated_out=net.activate(tuple(data_input.values()))
+                #print "Activated outs: ", activated_out
+                for out_index in range(num_outputs):
+                    data_output[out_index]=activated_out[out_index]
+                    sliders[out_index].set(activated_out[out_index])
+                    l_outputs[out_index].update(data_output[out_index])
+    
+    def ontimer(self):
+        main_loop()
+        master.after(10, ontimer)
+
+####################################################################################################################################
+
+
+class PyImpUI(QWidget):
     
     def __init__(self):
-        super(PyImp, self).__init__()
+        super(PyImpUI, self).__init__()
+
+        self.CurrentNetwork = PyImpNetwork()
+
         self.initUI()
         
     def initUI(self):
@@ -41,6 +160,7 @@ class PyImp(QWidget):
 
         getDataButton = self.findChild(QWidget,"getDataButton")
         trainMappingButton = self.findChild(QWidget,"trainMappingButton")
+        processOutputButton = self.findChild(QWidget,"processOutputButton")
         resetClassifierButton = self.findChild(QWidget,"resetClassifierButton")
         clearDataButton = self.findChild(QWidget,"clearDataButton")
 
@@ -52,17 +172,19 @@ class PyImp(QWidget):
         chooseClassifier = self.findChild(QWidget,"chooseClassifierComboBox")
 
         # Activate the Buttons in the Initial Screen
-        loadDataButton.clicked.connect(self.load_dataset)
-        saveDataButton.clicked.connect(self.save_dataset)
-        loadMappingButton.clicked.connect(self.load_net)
-        saveMappingButton.clicked.connect(self.save_net)
-        getDataButton.clicked.connect(self.learn_callback)
-        trainMappingButton.clicked.connect(self.train_callback)
-        resetClassifierButton.clicked.connect(self.clear_network)
-        clearDataButton.clicked.connect(self.clear_dataset)
+        loadDataButton.clicked.connect(self.loadQDataset)
+        saveDataButton.clicked.connect(self.saveQDataset)
+        loadMappingButton.clicked.connect(self.loadQNetwork)
+        saveMappingButton.clicked.connect(self.saveQNetwork)
+        getDataButton.clicked.connect(self.learnQCallback)
+        trainMappingButton.clicked.connect(self.trainQCallback)
+        resetClassifierButton.clicked.connect(self.clearQNetwork)
+        clearDataButton.clicked.connect(self.clearQDataSet)
+        processOutputButton.clicked.connect(self.computeQCallback)
 
         middleLayerEnable.toggle()
         middleLayerEnable.stateChanged.connect(self.enableSliders)
+        middleLayerEnable.setCheckState(Qt.Unchecked)
 
         self.show()
 
@@ -91,14 +213,14 @@ class PyImp(QWidget):
         self.slidersWindow.setGeometry(300,200,500,400)
         self.slidersWindow.setWindowTitle("Middle Layer Values")
 
-        self.chooseNSliders = QLineEdit("No. Sliders")
+        self.chooseNSliders = QLineEdit()
         self.chooseNSliders.setGeometry(10,32,100,25)
         self.chooseNSliders.setParent(self.slidersWindow)
         
         self.setButton = QPushButton("OK")
         self.setButton.setGeometry(self.chooseNSliders.width()+self.chooseNSliders.x()+5,32,50,25)
+        self.setButton.setDisabled(1)
         self.setButton.setParent(self.slidersWindow)
-
 
         self.layoutNo = QHBoxLayout()
         self.layoutNo.addWidget(self.chooseNSliders)
@@ -116,23 +238,24 @@ class PyImp(QWidget):
         self.layoutSliders.setSpacing(5)
         self.layoutSliders.addLayout(self.layoutTop)
 
-        self.chooseNSliders.textEdited.connect(self.createNoSliders)
-
+        self.chooseNSliders.textChanged.connect(self.setNumQSliders)
         self.slidersWindow.show()
 
-    def createNoSliders(self):
+    def setNumQSliders(self):
         
         #print "Creating Sliders Now From Sender"
         self.NoSlides = int(self.chooseNSliders.text())
-        self.setButton.clicked.connect(self.createSliders)
+        self.setButton.setEnabled(1)
+        self.setButton.clicked.connect(self.createQSliders)
 
-    def createSliders(self):
+    def createQSliders(self):
         
         self.slidersWindow.hide()
 
         num_outputs = self.NoSlides
         sliders={}
 
+        # If number of sliders is re-entered 
         if (len(self.slidersWindow.findChildren(QSlider)) != 0):
             print len(self.slidersWindow.findChildren(QSlider))
             
@@ -151,125 +274,51 @@ class PyImp(QWidget):
             else: 
                 sliders[s_index].setGeometry(10,sliders[s_index-1].y()+20,self.slidersWindow.width()-20,10)
 
-            self.layoutSliders.addWidget(sliders[s_index])
+            sliders[s_index].setObjectName("Slider%s"%s_index)
             sliders[s_index].setOrientation(Qt.Horizontal)
+            sliders[s_index].setRange(0,100)
             sliders[s_index].setParent(self.slidersWindow)
+            self.layoutSliders.addWidget(sliders[s_index])
 
         self.slidersWindow.show()
+        self.setButton.setDisabled(1)
 
-        # #self.mainloop()
+        # create mapper signals (outputs)
+        for l_num in range(num_outputs):
+            l_outputs[l_num]=l_map.add_output("/out"+str(l_num), 1, 'f',None,0.0,1.0)
+            l_inputs[l_num + num_inputs]=l_map.add_input("/out%d"%l_num, 1, 'f',None,0,1.0, h)
+            #l_map.poll(0)
+            print ("creating output","/out"+str(l_num))
 
-    def main_loop(self):
-        global ds
-        if ((learning==1) and (compute ==0)):
-                    print ("Inputs: ")
-                    print (tuple(data_input.values()))
-                    print ("Outputs: ")
-                    print (tuple( data_output.values()))
-                    ds.addSample(tuple(data_input.values()),tuple(data_output.values()))        
-        if (l_map.poll(1)) and ((compute==1) and (learning==0)):
-                #print "inputs to net: ", data_input
-                activated_out=net.activate(tuple(data_input.values()))
-                #print "Activated outs: ", activated_out
-                for out_index in range(num_outputs):
-                    data_output[out_index]=activated_out[out_index]
-                    sliders[out_index].set(activated_out[out_index])
-                    l_outputs[out_index].update(data_output[out_index])
+        # self.mainloop()
 
-    def on_gui_change(self,x,s_index):
-        try:
-            global data_output    
-            if (compute==0):
-                data_output[s_index]=float(x)
-                l_outputs[s_index].update(float(x))
+    def loadQDataset(self):
+        PyImpNetwork.load_dataset(self.CurrentNetwork)
 
-        except:
-            print ("WTF MATE? On Gui Change Error!")
-            raise
+    def saveQDataset(self):
+        PyImpNetwork.save_dataset(self.CurrentNetwork)
+    
+    def clearQDataSet(self):
+        PyImpNetwork.clear_dataset(self.CurrentNetwork)
 
+    def loadQNetwork(self):
+        PyImpNetwork.load_dataset(self.CurrentNetwork)
 
-    def learn_callback(self):
-        global learning
+    def saveQNetwork(self):
+        PyImpNetwork.save_net(self.CurrentNetwork)
 
-        if learning == 1:
-            b_learn.config(relief='raised',text="Acquire Training Data (OFF)",bg='gray')
-            learning=0
-            print ("learning is now OFF")
+    def clearQNetwork(self):
+        PyImpNetwork.clear_network(self.CurrentNetwork)
 
-        elif learning ==0:
-            b_learn.config(relief='sunken',text="Acquiring Training Data (ON)",bg='red')
-            learning=1
-            print ("learning is now ON")
+    def learnQCallback(self):
+        PyImpNetwork.learn_callback(self.CurrentNetwork)
 
-        print ("learning is", learning)
+    def trainQCallback(self):
+        PyImpNetwork.train_callback(self.CurrentNetwork)
 
-    def compute_callback(self):
-        global compute
-        global net
-        global ds
-        if compute==1:
-            b_compute.config(relief='raised',text="Press to compute network outputs (OFF)",bg='gray')
-            compute =0
-            print ("Compute network output is now OFF!")
-        elif compute ==0:
-            b_compute.config(relief='sunken',text="Computing network outputs(ON)",bg='coral')
-            compute =1
-            print ("Compute network output is now ON!")
-
-    def train_callback(self):
-        trainer = BackpropTrainer(net, learningrate=0.01, lrdecay=1, momentum=0.0, verbose=True)
+    def computeQCallback(self):
+        PyImpNetwork.compute_callback(self.CurrentNetwork)
         
-        print 'MSE before', trainer.testOnData(ds, verbose=True)
-        epoch_count = 0
-        while epoch_count < 1000:
-            epoch_count += 10
-            trainer.trainUntilConvergence(dataset=ds, maxEpochs=10)
-            networkwriter.NetworkWriter.writeToFile(net,'autosave.network')
-        print 'MSE after', trainer.testOnData(ds, verbose=True)
-        print ("\n")
-        print 'Total epochs:', trainer.totalepochs
-
-    def clear_dataset(self):
-        ds.clear()
-
-    def clear_network(self):
-        #resets the module buffers but doesn't reinitialise the connection weights
-        #TODO: reinitialise network here or make a new option for it.
-        net.reset()
-        
-    def save_dataset(self):
-        save_filename = tkFileDialog.asksaveasfilename()
-        self.ds.saveToFile(save_filename)
-        csv_file=open(save_filename+".csv",'w')
-        csv_file.write("[inputs][outputs]\r\n")
-        for inpt, tgt in ds:
-                new_str=str("{" + repr(inpt) + "," + repr(tgt) + "}")
-                new_str=new_str.strip('\n')
-                new_str=new_str.strip('\r')
-                new_str=new_str+"\r"
-                #print(repr(new_str))
-                csv_file.write(new_str)
-        csv_file.close()
-
-
-    def load_dataset(self):
-        open_filename = tkFileDialog.askopenfilename()
-        self.ds=SupervisedDataSet.loadFromFile(open_filename)
-        print self.ds
-            
-    def save_net(self):
-        save_filename = tkFileDialog.asksaveasfilename()
-        networkwriter.NetworkWriter.writeToFile(net,save_filename)
-
-    def load_net(self):
-        from pybrain.tools.customxml import networkreader
-        open_filename = tkFileDialog.askopenfilename()
-        self.net=networkreader.NetworkReader.readFrom(open_filename)
-
-    def ontimer(self):
-        main_loop()
-         #check the serial port
-        master.after(10, ontimer)
 
     #mapper signal handler (updates data_input[sig_indx]=new_float_value)
     def h(self,sig, f):
@@ -339,8 +388,6 @@ def main():
     # l_outputs={}
     # data_input={}
     # data_output={}
-    # learning = 0
-    # compute = 0
 
     # for s_index in range(num_inputs):
     #     data_input[s_index]=0.0
@@ -349,7 +396,7 @@ def main():
 
     # Run GUI Application
     app = QApplication(sys.argv)
-    ex = PyImp()
+    ex = PyImpUI()
 
     # #create mapper signals (inputs)
     # for l_num in range(num_inputs):
