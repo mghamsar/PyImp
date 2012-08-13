@@ -6,7 +6,7 @@ from pybrain.supervised.trainers import BackpropTrainer
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.datasets import SupervisedDataSet
 from pybrain.structure.modules import SigmoidLayer
-from pybrain.tools.customxml import networkwriter
+#from pybrain.tools.customxml import networkwriter
 
 import PySide
 from PySide.QtCore import *
