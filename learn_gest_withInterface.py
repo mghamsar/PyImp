@@ -114,17 +114,13 @@ class PyImpNetwork():
 
     def learn_callback(self):
 
-        if self.learning == 1:
-            #PyImpUI.trainMappingButton.setText("Learning is Now On")
-            self.learning=0
-            print ("learning is now OFF")
+        if self.learning == 0:
+            print ("learning is", self.learning)
+            self.learning = 1
 
-        elif self.learning ==0:
-            #PyImpUI.trainMappingButton.setText("Learning is Now Off")
-            self.learning=1
-            print ("learning is now ON")
-
-        print ("learning is", self.learning)
+        elif self.learning == 1:
+            print ("learning is", self.learning)
+            self.learning = 0
 
     def compute_callback(self):
 
@@ -168,9 +164,8 @@ class PyImpNetwork():
                     self.ds.addSample(tuple(data_input.values()),tuple(data_output.values()))        
         
         if (self.learnMapperDevice.poll(1)) and ((self.compute==1) and (learning==0)):
-                #print "inputs to net: ", data_input
                 activated_out=net.activate(tuple(data_input.values()))
-                #print "Activated outs: ", activated_out
+
                 for out_index in range(num_outputs):
                     data_output[out_index]=activated_out[out_index]
                     sliders[out_index].set(activated_out[out_index])
@@ -205,9 +200,8 @@ class PyImpUI(QWidget):
     
     def __init__(self):
         super(PyImpUI, self).__init__()
-        self.initUI()
         self.CurrentNetwork = PyImpNetwork()
-
+        self.initUI()
         
     def initUI(self):
 
@@ -251,6 +245,8 @@ class PyImpUI(QWidget):
         self.middleLayerEnable.toggle()
         self.middleLayerEnable.stateChanged.connect(self.enableSliders)
         self.middleLayerEnable.setCheckState(Qt.Unchecked)
+
+        self.CurrentNetwork.main_loop()
 
         self.show()
 
@@ -385,7 +381,16 @@ class PyImpUI(QWidget):
         PyImpNetwork.clear_network(self.CurrentNetwork)
 
     def learnQCallback(self):
+
+        if self.CurrentNetwork.learning == 1:
+            self.getDataButton.setDown(1)
+            self.getDataButton.setText("Data ON")
+
+        elif self.CurrentNetwork.learning == 0:
+            self.getDataButton.setText("Get Data")
+
         PyImpNetwork.learn_callback(self.CurrentNetwork)
+
 
     def trainQCallback(self):
         PyImpNetwork.train_callback(self.CurrentNetwork)
@@ -429,9 +434,9 @@ def main():
 
     else:
         ex.CurrentNetwork.setNumInputs(8)
-        ex.CurrentNetwork.setNumHiddenNodes(8)
+        ex.CurrentNetwork.setNumHiddenNodes(5)
         ex.CurrentNetwork.setNumeOutputs(8)
-        print "No Input Arguments, setting defaults to 8 5 8"       
+        print "No Input Arguments, setting defaults - 8 5 8"       
 
     print ("Input Arguments (#inputs, #hidden nodes, #outputs): " + str(ex.CurrentNetwork.num_inputs) + ", " + str(ex.CurrentNetwork.num_hidden) + ", " + str(ex.CurrentNetwork.num_outputs))        
 
