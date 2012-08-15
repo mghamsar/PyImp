@@ -7,7 +7,7 @@ from pybrain.supervised.trainers import BackpropTrainer
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.datasets import SupervisedDataSet
 from pybrain.structure.modules import SigmoidLayer
-from pybrain.tools import *
+from pybrain.tools.xml import networkwriter
 
 import PySide
 from PySide.QtCore import *
@@ -39,18 +39,18 @@ class PyImpNetwork():
 
         self.learnMapperDevice = mapper.device("Implicit_LearnMapper",9002)
 
-    # mapper signal handler (updates data_input[sig_indx]=new_float_value)
+    # mapper signal handler (updates self.data_input[sig_indx]=new_float_value)
     def h(self,sig, f):
         try:
             print sig.name
             if '/in' in sig.name:
                 s_indx=str.split(sig.name,"/in")
-                data_input[int(s_indx[1])]=float(f)
+                self.data_input[int(s_indx[1])]=float(f)
 
             elif '/out' in sig.name:
                 if (learning==1):
                     s_indx=str.split(sig.name,"/out")
-                    data_output[int(s_indx[1])]=float(f)
+                    self.data_output[int(s_indx[1])]=float(f)
         except:
             print "Exception, Handler not working"
 
@@ -170,8 +170,8 @@ class PyImpNetwork():
     def on_gui_change(self,x,s_index):
             try:
                 if (self.compute == 0):
-                    data_output[s_index] = float(x)
-                    l_outputs[s_index].update(float(x))
+                    self.data_output[s_index] = float(x)
+                    self.l_outputs[s_index].update(float(x))
             except:
                 print ("WTF ? On Gui Change Error!")
                 raise
@@ -182,18 +182,18 @@ class PyImpNetwork():
 
         if ((self.learning == 1) and (self.compute == 0)):
             print ("Inputs: ")
-            print (tuple(data_input.values()))
+            print (tuple(self.data_input.values()))
             print ("Outputs: ")
-            print (tuple( data_output.values()))
-            self.ds.addSample(tuple(data_input.values()),tuple(data_output.values()))  
+            print (tuple(self.data_output.values()))
+            self.ds.addSample(tuple(self.data_input.values()),tuple(self.data_output.values()))  
         
         if ((self.compute == 1) and (self.learning == 0)):
 
-            activated_out = self.net.activate(tuple(data_input.values()))
-            for out_index in range(num_outputs):
-                data_output[out_index] = activated_out[out_index]
+            activated_out = self.net.activate(tuple(self.data_input.values()))
+            for out_index in range(self.num_outputs):
+                self.data_output[out_index] = activated_out[out_index]
                 sliders[out_index].set(activated_out[out_index])
-                l_outputs[out_index].update(data_output[out_index])
+                self.l_outputs[out_index].update(self.data_output[out_index])
 
 ####################################################################################################################################
 
@@ -256,6 +256,7 @@ class PyImpUI(QWidget):
 
     def update(self):
         self.CurrentNetwork.learnMapperDevice.poll(1)
+        self.CurrentNetwork.main_loop()
 
     def enableSliders(self,state):
 
