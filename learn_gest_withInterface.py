@@ -37,6 +37,8 @@ class PyImpNetwork():
         self.data_input = {}
         self.data_output = {}
 
+        self.learnMapperDevice = mapper.device("Implicit_LearnMapper",9002)
+
     # mapper signal handler (updates data_input[sig_indx]=new_float_value)
     def h(self,sig, f):
         try:
@@ -59,11 +61,6 @@ class PyImpNetwork():
         #create ANN Dataset
         self.ds = SupervisedDataSet(n_inputs,n_outputs)
 
-    def createMapperDevice(self):
-        #instatiate mapper
-        self.learnMapperDevice = mapper.device("Implicit_LearnMapper",9002)
-        print self.learnMapperDevice
-
     def createMapperInputs(self,n_inputs):
         #create mapper signals (inputs)
         for l_num in range(n_inputs):
@@ -79,7 +76,6 @@ class PyImpNetwork():
         #create mapper signals (n_outputs)
         for l_num in range(n_outputs):
             self.l_outputs[l_num] = self.learnMapperDevice.add_output("/out"+str(l_num), 1, 'f',None,0.0,1.0)
-            self.l_inputs[l_num + n_outputs]=self.learnMapperDevice.add_input("/out%d"%l_num, 1, 'f',None,0,1.0, self.h)
             print ("creating output","/out"+str(l_num))
         
         # Set initial Data Output values for Network to 0
@@ -121,14 +117,12 @@ class PyImpNetwork():
         if len(new_str)>1: 
             csv_file.close()
 
-    def save_net(self):
-        save_filename = tkFileDialog.asksaveasfilename()
+    def save_net(self,save_filename):
         networkwriter.NetworkWriter.writeToFile(net,save_filename)
 
-    def load_net(self):
+    def load_net(self,open_filename):
         from pybrain.tools.customxml import networkreader
-        open_filename = tkFileDialog.askopenfilename()
-        self.net=networkreader.NetworkReader.readFrom(open_filename)
+        self.net = networkreader.NetworkReader.readFrom(open_filename)
 
     def clear_dataset(self):
         if self.ds != 0:
@@ -175,32 +169,31 @@ class PyImpNetwork():
 
     def on_gui_change(self,x,s_index):
             try:
-                if (self.compute==0):
-                    data_output[s_index]=float(x)
+                if (self.compute == 0):
+                    data_output[s_index] = float(x)
                     l_outputs[s_index].update(float(x))
             except:
-                print ("WTF MATE? On Gui Change Error!")
+                print ("WTF ? On Gui Change Error!")
                 raise
 
     def main_loop(self):
-        if ((self.learning==1) and (self.compute ==0)):
+
+        self.learnMapperDevice.poll(1)
+
+        if ((self.learning == 1) and (self.compute == 0)):
             print ("Inputs: ")
             print (tuple(data_input.values()))
             print ("Outputs: ")
             print (tuple( data_output.values()))
             self.ds.addSample(tuple(data_input.values()),tuple(data_output.values()))  
         
-        if (self.learnMapperDevice.poll(1)) and ((self.compute==1) and (self.learning==0)):
-            activated_out = self.net.activate(tuple(data_input.values()))
+        if ((self.compute == 1) and (self.learning == 0)):
 
+            activated_out = self.net.activate(tuple(data_input.values()))
             for out_index in range(num_outputs):
-                data_output[out_index]=activated_out[out_index]
+                data_output[out_index] = activated_out[out_index]
                 sliders[out_index].set(activated_out[out_index])
                 l_outputs[out_index].update(data_output[out_index])
-    
-    def ontimer(self):
-        self.main_loop()
-        #time.sleep(10)
 
 ####################################################################################################################################
 
@@ -211,6 +204,10 @@ class PyImpUI(QWidget):
         super(PyImpUI, self).__init__()
         self.CurrentNetwork = PyImpNetwork()
         self.initUI()
+
+        timer = QTimer(self)
+        self.connect(timer, SIGNAL("timeout()"), self.update)
+        timer.start(1000)
         
     def initUI(self):
 
@@ -256,6 +253,9 @@ class PyImpUI(QWidget):
         self.middleLayerEnable.setCheckState(Qt.Unchecked)
 
         self.show()
+
+    def update(self):
+        self.CurrentNetwork.learnMapperDevice.poll(1)
 
     def enableSliders(self,state):
 
@@ -379,9 +379,26 @@ class PyImpUI(QWidget):
         PyImpNetwork.clear_dataset(self.CurrentNetwork)
 
     def loadQNetwork(self):
+
+        # Create Dialog to load the dataset from the directory
+        loadDialog = QFileDialog()
+        loadDialog.setFileMode(QFileDialog.ExistingFile)
+        loadDialog.setAcceptMode(QFileDialog.AcceptOpen)
+        loadDialog.setWindowTitle("Load Network")
+        loadDialog.show()
+
+        filename = loadDialog.getOpenFileName()
         PyImpNetwork.load_dataset(self.CurrentNetwork)
 
     def saveQNetwork(self):
+        # Create Dialog to save the file in directory
+        saveDialog = QFileDialog()
+        saveDialog.setFileMode(QFileDialog.AnyFile)
+        saveDialog.setAcceptMode(QFileDialog.AcceptSave)
+        saveDialog.setWindowTitle("Save Network")
+        saveDialog.show()
+
+        filename = saveDialog.getSaveFileName()
         PyImpNetwork.save_net(self.CurrentNetwork)
 
     def clearQNetwork(self):
@@ -454,24 +471,14 @@ def main():
 
     print ("Input Arguments (#inputs, #hidden nodes, #outputs): " + str(ex.CurrentNetwork.num_inputs) + ", " + str(ex.CurrentNetwork.num_hidden) + ", " + str(ex.CurrentNetwork.num_outputs))        
     
-    ex.CurrentNetwork.learnMapperDevice = mapper.device("LearnMapper",9000)
-    print ex.CurrentNetwork.learnMapperDevice
-
-    #ex.CurrentNetwork.createMapperDevice()
     ex.CurrentNetwork.createMapperInputs(ex.CurrentNetwork.num_inputs)
     ex.CurrentNetwork.createMapperOutputs(ex.CurrentNetwork.num_outputs)
     ex.CurrentNetwork.createANN(ex.CurrentNetwork.num_inputs,ex.CurrentNetwork.num_hidden,ex.CurrentNetwork.num_outputs)
-
-    ex.CurrentNetwork.main_loop()
 
     sys.exit(app.exec_())
 
 ##################################################################################################################################################
 # Run Main Function
-
-test2 = mapper.device("Learnmapper2",9000)
-test2.add_output('/sample',1,'f',None,0,1.0)
-
 if __name__ == '__main__':
     main()
 
