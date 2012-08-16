@@ -42,7 +42,7 @@ class PyImpNetwork():
     # mapper signal handler (updates self.data_input[sig_indx]=new_float_value)
     def h(self,sig, f):
         try:
-            print sig.name
+            #print sig.name
             if '/in' in sig.name:
                 s_indx=str.split(sig.name,"/in")
                 self.data_input[int(s_indx[1])]=float(f)
@@ -51,6 +51,7 @@ class PyImpNetwork():
                 if (learning==1):
                     s_indx=str.split(sig.name,"/out")
                     self.data_output[int(s_indx[1])]=float(f)
+                    print self.data_output[int(s_indx[1])]
         except:
             print "Exception, Handler not working"
 
@@ -75,7 +76,8 @@ class PyImpNetwork():
     def createMapperOutputs(self,n_outputs):
         #create mapper signals (n_outputs)
         for l_num in range(n_outputs):
-            self.l_outputs[l_num] = self.learnMapperDevice.add_output("/out"+str(l_num), 1, 'f',None,0.0,1.0)
+            self.l_outputs[l_num] = self.learnMapperDevice.add_output("/out%d"%l_num, 1, 'f',None,0.0,1.0)
+            self.l_outputs[l_num].set_query_callback(self.h)
             print ("creating output","/out"+str(l_num))
         
         # Set initial Data Output values for Network to 0
@@ -163,40 +165,47 @@ class PyImpNetwork():
             self.trainer.trainUntilConvergence(dataset=self.ds, maxEpochs=10)
             networkwriter.NetworkWriter.writeToFile(self.net,'autosave.network')
         
-        print 'MSE after', self.trainer.testOnData(ds, verbose=True)
+        print 'MSE after', self.trainer.testOnData(self.ds, verbose=True)
         print ("\n")
         print 'Total epochs:', self.trainer.totalepochs
 
-    def on_gui_change(self,x,s_index):
-            try:
-                if (self.compute == 0):
-                    self.data_output[s_index] = float(x)
-                    self.l_outputs[s_index].update(float(x))
-            except:
-                print ("WTF ? On Gui Change Error!")
-                raise
-
     def main_loop(self):
-
         self.learnMapperDevice.poll(1)
 
+        if ((self.learning == 0) and (self.compute == 0)):
+
+            for index in range(self.num_outputs):
+                self.l_outputs[index].query_remote()
+                print self.l_outputs[index]
+            # for index in range(self.num_outputs):
+
+            #     self.data_output[index] = 0 # GET THE DATA FROM THE MAPPER DEVICE 
+
+            #     Update mapper signal with data saved in database
+            #     self.l_outputs[index].update(self.data_output[index])
+
         if ((self.learning == 1) and (self.compute == 0)):
+
+            for index in range(self.num_outputs):
+                self.l_outputs[index].update(self.data_output[index])
+
             print ("Inputs: ")
             print (tuple(self.data_input.values()))
             print ("Outputs: ")
             print (tuple(self.data_output.values()))
-            self.ds.addSample(tuple(self.data_input.values()),tuple(self.data_output.values()))  
+
+            self.ds.addSample(tuple(self.data_input.values()),tuple(self.data_output.values()))
         
         if ((self.compute == 1) and (self.learning == 0)):
-
             activated_out = self.net.activate(tuple(self.data_input.values()))
+
             for out_index in range(self.num_outputs):
                 self.data_output[out_index] = activated_out[out_index]
-                sliders[out_index].set(activated_out[out_index])
                 self.l_outputs[out_index].update(self.data_output[out_index])
 
-####################################################################################################################################
+                # TO DO: Update Outputs Plot dynamically with new values
 
+####################################################################################################################################
 
 class PyImpUI(QWidget):
     
@@ -206,8 +215,8 @@ class PyImpUI(QWidget):
         self.initUI()
 
         timer = QTimer(self)
-        self.connect(timer, SIGNAL("timeout()"), self.update)
-        timer.start(1000)
+        self.connect(timer, SIGNAL("timeout()"), self.QUpdate)
+        timer.start(50)
         
     def initUI(self):
 
@@ -254,7 +263,7 @@ class PyImpUI(QWidget):
 
         self.show()
 
-    def update(self):
+    def QUpdate(self):
         self.CurrentNetwork.learnMapperDevice.poll(1)
         self.CurrentNetwork.main_loop()
 
@@ -312,8 +321,6 @@ class PyImpUI(QWidget):
         self.slidersWindow.show()
 
     def setNumQSliders(self):
-        
-        #print "Creating Sliders Now From Sender"
         self.NoSlides = int(self.chooseNSliders.text())
         self.setButton.setEnabled(1)
         self.setButton.clicked.connect(self.createQSliders)
@@ -327,7 +334,7 @@ class PyImpUI(QWidget):
 
         # If number of sliders is re-entered 
         if (len(self.slidersWindow.findChildren(QSlider)) != 0):
-            print len(self.slidersWindow.findChildren(QSlider))
+            #print len(self.slidersWindow.findChildren(QSlider))
             
             for key in sliders.iterkeys():
                 sliders[key].setParent(None)
@@ -335,7 +342,7 @@ class PyImpUI(QWidget):
                 del sliders[key]
         
         for s_index in range(self.NoSlides):
-            print range(self.NoSlides)
+            #print range(self.NoSlides)
 
             sliders[s_index] = QSlider()
             if s_index == 0: 
