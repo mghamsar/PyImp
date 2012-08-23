@@ -48,8 +48,6 @@ class PyImpNetwork():
                 self.data_input[int(s_indx[1])]=float(f)
 
             elif '/out' in sig.name:
-                if (self.learning == 1):
-                    #print "FOUND /out and in learn mode", f
                     s_indx = str.split(sig.name,"/out")
                     self.data_output[int(s_indx[1])] = float(f)
                     print "Output Value from data_output", self.data_output[int(s_indx[1])]
@@ -89,7 +87,7 @@ class PyImpNetwork():
         #create mapper signals (n_outputs)
         for l_num in range(n_outputs):
             self.l_outputs[l_num] = self.learnMapperDevice.add_output("/out%d"%l_num, 1, 'f',None,0.0,1.0)
-            self.l_outputs[l_num].set_query_callback(self.hout)
+            self.l_outputs[l_num].set_query_callback(self.h)
             print ("creating output","/out"+str(l_num))
         
         # Set initial Data Output values for Network to 0
@@ -223,6 +221,8 @@ class PyImpUI(QWidget):
         self.setSlidersButton.hide()
 
         self.chooseClassifier = self.findChild(QWidget,"chooseClassifierComboBox")
+
+        self.numberOfSnapshots = self.findChild(QLabel,"noSnapshots")
 
         # Activate the Buttons in the Initial Screen
         self.loadDataButton.clicked.connect(self.loadQDataset)
@@ -363,6 +363,7 @@ class PyImpUI(QWidget):
     
     def clearQDataSet(self):
         PyImpNetwork.clear_dataset(self.CurrentNetwork)
+        self.numberOfSnapshots.setText('0')
 
     def loadQNetwork(self):
 
@@ -393,6 +394,8 @@ class PyImpUI(QWidget):
     def learnQCallback(self):
 
         PyImpNetwork.learn_callback(self.CurrentNetwork)
+        cur_count = int(self.numberOfSnapshots.text())
+        self.numberOfSnapshots.setText(str(cur_count+1))
 
         if self.CurrentNetwork.learning == 1:
             self.getDataButton.setDown(1)
