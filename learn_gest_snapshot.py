@@ -202,7 +202,7 @@ class PyImpUI(QWidget):
         #print "WIDGETS", widgets
 
         #Load UI created in QT Designer
-        self.loadCustomWidget("PyImpMainWindow.ui")
+        self.loadCustomWidget("PyImpMainWindowSnapShot.ui")
 
         self.loadDataButton = self.findChild(QWidget,"loadDataButton")
         self.saveDataButton = self.findChild(QWidget,"saveDataButton")
@@ -399,11 +399,11 @@ class PyImpUI(QWidget):
 
         if self.CurrentNetwork.learning == 1:
             self.getDataButton.setDown(1)
-            self.getDataButton.setText("Data ON")
+            self.getDataButton.setText("Taking Snapshot")
 
         elif self.CurrentNetwork.learning == 0:
             self.getDataButton.setDown(0)
-            self.getDataButton.setText("Get Data")
+            self.getDataButton.setText("Snapshot")
 
     def trainQCallback(self):
         PyImpNetwork.train_callback(self.CurrentNetwork)
