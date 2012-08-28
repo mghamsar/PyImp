@@ -66,18 +66,6 @@ class PyImpNetwork():
         except:
            print "Exception, Handler not working"
 
-    def hout(self,sig,f):
-
-        try:
-            if '/out' in sig.name:
-                    print "FOUND /out and in learn mode", f
-                    s_indx = str.split(sig.name,"/out")
-                    self.data_output[int(s_indx[1])] = float(f)
-                    print self.data_output[int(s_indx[1])]
-        except:
-            print "Exception, Output handler not working"
-
-
     def createANN(self,n_inputs,n_hidden,n_outputs):
         #create ANN
         self.net = buildNetwork(n_inputs,n_hidden,n_outputs,bias=True, hiddenclass=SigmoidLayer, outclass=SigmoidLayer, recurrent=self.recurrent_flag)
@@ -447,26 +435,44 @@ class PyImpUI(QWidget):
         self.snapshotWindow.setWindowTitle("Edit Existing Snapshots")
 
         self.snapshotGrid = QGridLayout()
-        n_rows = 5
-        n_columns = 5
-        i = 1
-        j = 1
+        self.snapshotGrid.setHorizontalSpacing(10)
+        self.snapshotGrid.setVerticalSpacing(10)
+        button_list = []
+        label_list = []
+        pos_list = []
 
         for s, val in self.CurrentNetwork.temp_ds.iteritems():
             s_button = QPushButton("Remove")
             s_label = QLabel("Snapshot %s"%s)
-            s_button.resize(70,20)
-            s_label.resize(70,30)
-            #s_button.setParent(self.snapshotWindow)
-            #s_label.setParent(self.snapshotWindow)
-            snapshotSinglelayout = QVBoxLayout()
-            snapshotSinglelayout.addWidget(s_label)
-            snapshotSinglelayout.addWidget(s_button)
+            s_button.resize(80,20)
+            s_label.resize(80,30)
+            s_button.setObjectName("RemoveDataset%d"%s)
+            s_label.setObjectName("LabelDataset%d"%s)
+            s_label.setParent(self.snapshotWindow)
+            s_button.setParent(self.snapshotWindow)
+            button_list.append(s_button)
+            label_list.append(s_label)
+            pos = [s/6,s]
+            pos_list.append(pos)
 
-            while j < n_columns:
-                self.snapshotGrid.addLayout(snapshotSinglelayout,i,j,5,5,Qt.AlignCenter)
-                j = j+1
-            i = i+1
+            print pos_list
+
+        for col, label in enumerate(label_list):
+            label.setParent(self.snapshotWindow)
+            label.setAlignment(Qt.AlignCenter)
+            self.snapshotGrid.addWidget(label,0,col,5,5,Qt.AlignCenter)
+            if col == 0:
+                label.move(10,10)
+            else:
+                label.move(label_list[col-1].x()+label_list[col-1].width()+10,10)
+
+        for col, button in enumerate(button_list):
+            button.setParent(self.snapshotWindow)
+            self.snapshotGrid.addWidget(button,1,col,5, 5,Qt.AlignCenter)
+            if col == 0:
+                button.move(10,35)
+            else:
+                button.move(button_list[col-1].x()+button_list[col-1].width()+10,35)
 
         self.snapshotWindow.setLayout(self.snapshotGrid)
         self.snapshotWindow.show()
