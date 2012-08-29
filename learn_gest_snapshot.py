@@ -431,15 +431,13 @@ class PyImpUI(QWidget):
     def openEditSnapshotsWindow(self):
 
         self.snapshotWindow = QMainWindow()
-        self.snapshotWindow.setGeometry(300,200,500,400)
-        self.snapshotWindow.setWindowTitle("Edit Existing Snapshots")
-
+        
         self.snapshotGrid = QGridLayout()
         self.snapshotGrid.setHorizontalSpacing(10)
         self.snapshotGrid.setVerticalSpacing(10)
         button_list = []
         label_list = []
-        pos_list = []
+        pos = []
 
         for s, val in self.CurrentNetwork.temp_ds.iteritems():
             s_button = QPushButton("Remove")
@@ -450,31 +448,35 @@ class PyImpUI(QWidget):
             s_label.setObjectName("LabelDataset%d"%s)
             s_label.setParent(self.snapshotWindow)
             s_button.setParent(self.snapshotWindow)
+
+            #These lists contain the actual QWidgets
             button_list.append(s_button)
             label_list.append(s_label)
-            pos = [s/6,s]
-            pos_list.append(pos)
+            
+            #Grid Positions
+            p = s-1
+            pos.append((p/5,p%5))
 
-            print pos_list
+        print pos
 
-        for col, label in enumerate(label_list):
+        j = 0
+        for label in label_list:
             label.setParent(self.snapshotWindow)
             label.setAlignment(Qt.AlignCenter)
-            self.snapshotGrid.addWidget(label,0,col,5,5,Qt.AlignCenter)
-            if col == 0:
-                label.move(10,10)
-            else:
-                label.move(label_list[col-1].x()+label_list[col-1].width()+10,10)
+            self.snapshotGrid.addWidget(label,pos[j][0],pos[j][1],Qt.AlignCenter)
+            label.move((pos[j][1])*(label.width()+5)+10,(pos[j][0])*(label.height()+10)+10)
+            j = j+1
 
-        for col, button in enumerate(button_list):
+        k = 0
+        for button in button_list:
             button.setParent(self.snapshotWindow)
-            self.snapshotGrid.addWidget(button,1,col,5, 5,Qt.AlignCenter)
-            if col == 0:
-                button.move(10,35)
-            else:
-                button.move(button_list[col-1].x()+button_list[col-1].width()+10,35)
+            self.snapshotGrid.addWidget(button,pos[k][0]+1,pos[k][1],Qt.AlignCenter)
+            button.move((pos[k][1])*(button.width()+5)+10,(pos[k][0])*(button.height()+20)+35)
+            k = k+1
 
         self.snapshotWindow.setLayout(self.snapshotGrid)
+        self.snapshotWindow.setGeometry(300,200,500,400)
+        self.snapshotWindow.setWindowTitle("Edit Existing Snapshots")
         self.snapshotWindow.show()
 
 ####################################################################################################################################################
