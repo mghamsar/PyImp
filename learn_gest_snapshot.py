@@ -505,12 +505,27 @@ class PyImpUI(QWidget):
         print "Sender ID", sender_id
         
         self.CurrentNetwork.remove_tempds(sender_id)
+        print "Number of Items", self.snapshotGrid.count(), range(1,self.snapshotGrid.count()+1)
 
-        #if self.CurrentNetwork.temp_ds[sender_id] == None:
-        # b = snapshotGrid.takeAt(sender_id)
-        # print b
-        # #buttons.pop(sender_id)
-        # del b
+        for i in range(1,self.snapshotGrid.count()+1):
+
+            b = self.snapshotGrid.takeAt(i)
+            b_widget = b.widget()
+            print b_widget
+
+            if b_widget.objectName() == str(sender_id): 
+
+                b.widget().setParent(None)
+                b.widget().deleteLater()
+
+        #del b
+        self.snapshotWindow.update()
+
+        # b_label = self.snapshotWindow.findChild(QLabel,"LabelDataset%d"%sender_id)
+        # print b_label
+
+
+        
 
 
 
