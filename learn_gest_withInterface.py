@@ -44,16 +44,29 @@ class PyImpNetwork():
         try:
             #print sig.name
             if '/in' in sig.name:
-                s_indx=str.split(sig.name,"/in")
+                s_indx = str.split(sig.name,"/in")
                 self.data_input[int(s_indx[1])]=float(f)
 
             elif '/out' in sig.name:
-                if (learning==1):
-                    s_indx=str.split(sig.name,"/out")
+                if (self.learning == 1):
+                    print "FOUND /out and in learn mode", f
+                    s_indx = str.split(sig.name,"/out")
                     self.data_output[int(s_indx[1])]=float(f)
                     print self.data_output[int(s_indx[1])]
         except:
             print "Exception, Handler not working"
+
+    def hout(self,sig,f):
+        try:
+            if '/out' in sig.name:
+                if (self.learning == 1):
+                    print "FOUND /out and in learn mode", f
+                    s_indx = str.split(sig.name,"/out")
+                    self.data_output[int(s_indx[1])] = float(f)
+                    print "Value saved to data_output", self.data_output[int(s_indx[1])]
+        except:
+            print "Exception, Handler not working"
+
 
     def createANN(self,n_inputs,n_hidden,n_outputs):
         #create ANN
@@ -66,7 +79,6 @@ class PyImpNetwork():
         #create mapper signals (inputs)
         for l_num in range(n_inputs):
             self.l_inputs[l_num] = self.learnMapperDevice.add_input("/in%d"%l_num, 1, 'f',None,0,1.0, self.h)
-            self.learnMapperDevice.poll(0)
             print ("creating input", "/in"+str(l_num))
 
         # Set initial Data Input values for Network to 0
@@ -77,7 +89,7 @@ class PyImpNetwork():
         #create mapper signals (n_outputs)
         for l_num in range(n_outputs):
             self.l_outputs[l_num] = self.learnMapperDevice.add_output("/out%d"%l_num, 1, 'f',None,0.0,1.0)
-            self.l_outputs[l_num].set_query_callback(self.h)
+            self.l_outputs[l_num].set_query_callback(self.hout)
             print ("creating output","/out"+str(l_num))
         
         # Set initial Data Output values for Network to 0
@@ -101,7 +113,7 @@ class PyImpNetwork():
   
     def load_dataset(self,open_filename):
         self.ds = SupervisedDataSet.loadFromFile(open_filename)
-        print self.ds
+        #print self.ds
 
     def save_dataset(self,filename):
 
@@ -158,7 +170,6 @@ class PyImpNetwork():
         self.trainer = BackpropTrainer(self.net, learningrate=0.01, lrdecay=1, momentum=0.0, verbose=True)
         
         print 'MSE before', self.trainer.testOnData(self.ds, verbose=True)
-        
         epoch_count = 0
         while epoch_count < 1000:
             epoch_count += 10
@@ -172,22 +183,12 @@ class PyImpNetwork():
     def main_loop(self):
         self.learnMapperDevice.poll(1)
 
-        if ((self.learning == 0) and (self.compute == 0)):
-
-            for index in range(self.num_outputs):
-                self.l_outputs[index].query_remote()
-                print self.l_outputs[index]
-            # for index in range(self.num_outputs):
-
-            #     self.data_output[index] = 0 # GET THE DATA FROM THE MAPPER DEVICE 
-
-            #     Update mapper signal with data saved in database
-            #     self.l_outputs[index].update(self.data_output[index])
-
         if ((self.learning == 1) and (self.compute == 0)):
-
+            
+            # Query output values upon change in GUI
             for index in range(self.num_outputs):
-                self.l_outputs[index].update(self.data_output[index])
+                self.data_output[index] = self.l_outputs[index].query_remote()
+                print self.data_output[index]
 
             print ("Inputs: ")
             print (tuple(self.data_input.values()))
@@ -202,7 +203,6 @@ class PyImpNetwork():
             for out_index in range(self.num_outputs):
                 self.data_output[out_index] = activated_out[out_index]
                 self.l_outputs[out_index].update(self.data_output[out_index])
-
                 # TO DO: Update Outputs Plot dynamically with new values
 
 ####################################################################################################################################

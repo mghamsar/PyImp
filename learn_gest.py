@@ -90,11 +90,7 @@ def main_loop():
 
 
 def on_gui_change(x,s_index):
-#   s_index=0
-	try:
-		#print "in callback: on gui change"
-		#print x,s_index
-	
+	try:	
 		global data_output    
 		if (compute==0):
 			data_output[s_index]=float(x)
@@ -110,7 +106,7 @@ for s_index in range(num_outputs):
 	def tc(s_index):
 		return lambda x: on_gui_change(x,s_index)
 
-	sliders[s_index]=Tkinter.Scale(master,from_=0,to=1, label='output'+str(s_index),orient=Tkinter.HORIZONTAL,length=300, resolution=0.01, command=tc(s_index))
+	sliders[s_index]=Tkinter.Scale(master,from_= 0,to = 1, label='output'+str(s_index),orient=Tkinter.HORIZONTAL,length=300, resolution=0.01, command=tc(s_index))
 	sliders[s_index].pack()
 
 
@@ -217,18 +213,11 @@ b_load_net.pack()
 
 def ontimer():
 	main_loop()
-  #                  check the serial port
 	master.after(10, ontimer)
-
-
-
 
 #mapper signal handler (updates data_input[sig_indx]=new_float_value)
 def h(sig, f):
 	try:
-		#print "mapper signal handler"
-		#print (sig.name, f)
-
 		global data_input
 		global data_output
 		
@@ -269,10 +258,6 @@ net = buildNetwork(num_inputs,num_hidden,num_outputs,bias=True, hiddenclass=Sigm
 #create dataSet
 ds = SupervisedDataSet(num_inputs, num_outputs)
 	
-#while (True):
-	
- 
-
 ontimer()
 master.protocol("WM_DELETE_WINDOW", master.quit)
 master.mainloop()

@@ -161,12 +161,11 @@ class PyImpNetwork():
 
     def remove_tempds(self,objectNum):
 
-        for ds in self.temp_ds.iterkeys():
-            print ds
-            if ds == objectNum: 
-                print "GOOD DS", ds
-
-
+        if objectNum in self.temp_ds.iterkeys():
+            print "Found DS to delete", objectNum
+            del self.temp_ds[objectNum]
+        else: 
+            print "Error, This database entry does not exist"
 
     def compute_callback(self):
 
@@ -503,7 +502,16 @@ class PyImpUI(QWidget):
         sender_name = sender.objectName()
         sender_id = sender_name.split("Dataset")
         sender_id = int(sender_id[1])
+        print "Sender ID", sender_id
+        
         self.CurrentNetwork.remove_tempds(sender_id)
+
+        #if self.CurrentNetwork.temp_ds[sender_id] == None:
+        # b = snapshotGrid.takeAt(sender_id)
+        # print b
+        # #buttons.pop(sender_id)
+        # del b
+
 
 
 ####################################################################################################################################################
