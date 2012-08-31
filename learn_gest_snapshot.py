@@ -157,14 +157,16 @@ class PyImpNetwork():
         self.temp_ds[self.snapshot_count].append(tuple(self.data_input.values()))
         self.temp_ds[self.snapshot_count].append(tuple(self.data_output.values()))
 
-        print self.snapshot_count, self.temp_ds[self.snapshot_count]
+        print self.snapshot_count, "(Input, Output)", self.temp_ds[self.snapshot_count]
 
-        self.ds.addSample(tuple(self.data_input.values()),tuple(self.data_output.values()))
+    def remove_tempds(self,objectNum):
 
-        print ("Inputs: ")
-        print (tuple(self.data_input.values()))
-        print ("Outputs: ")
-        print (tuple(self.data_output.values()))
+        for ds in self.temp_ds.iterkeys():
+            print ds
+            if ds == objectNum: 
+                print "GOOD DS", ds
+
+
 
     def compute_callback(self):
 
@@ -188,6 +190,9 @@ class PyImpNetwork():
         print 'MSE after', self.trainer.testOnData(self.ds, verbose=True)
         print ("\n")
         print 'Total epochs:', self.trainer.totalepochs
+
+    def update_ds(self):
+        self.ds.addSample(tuple(self.data_input.values()),tuple(self.data_output.values()))
 
 ####################################################################################################################################
 
@@ -431,12 +436,22 @@ class PyImpUI(QWidget):
     def openEditSnapshotsWindow(self):
 
         self.snapshotWindow = QMainWindow()
+
+
+        self.addtoDsButton = QPushButton("Update Dataset")
+        self.addtoDsButton.setGeometry(320,350,170,40)
+        self.addtoDsButton.setParent(self.snapshotWindow)
+        self.addtoDsButton.clicked.connect(self.updateQDataSet)
         
         self.snapshotGrid = QGridLayout()
         self.snapshotGrid.setHorizontalSpacing(10)
         self.snapshotGrid.setVerticalSpacing(10)
+
+        # Maintain a list of created widgets
         button_list = []
         label_list = []
+
+        #List of Grid Positions
         pos = []
 
         for s, val in self.CurrentNetwork.temp_ds.iteritems():
@@ -444,7 +459,7 @@ class PyImpUI(QWidget):
             s_label = QLabel("Snapshot %s"%s)
             s_button.resize(80,20)
             s_label.resize(80,30)
-            s_button.setObjectName("RemoveDataset%d"%s)
+            s_button.setObjectName("Dataset%d"%s)
             s_label.setObjectName("LabelDataset%d"%s)
             s_label.setParent(self.snapshotWindow)
             s_button.setParent(self.snapshotWindow)
@@ -457,8 +472,7 @@ class PyImpUI(QWidget):
             p = s-1
             pos.append((p/5,p%5))
 
-        print pos
-
+        #Display labels on Grid
         j = 0
         for label in label_list:
             label.setParent(self.snapshotWindow)
@@ -466,18 +480,31 @@ class PyImpUI(QWidget):
             self.snapshotGrid.addWidget(label,pos[j][0],pos[j][1],Qt.AlignCenter)
             label.move((pos[j][1])*(label.width()+5)+10,(pos[j][0])*(label.height()+10)+10)
             j = j+1
-
+        
+        #Display buttons on Grid
         k = 0
         for button in button_list:
             button.setParent(self.snapshotWindow)
             self.snapshotGrid.addWidget(button,pos[k][0]+1,pos[k][1],Qt.AlignCenter)
             button.move((pos[k][1])*(button.width()+5)+10,(pos[k][0])*(button.height()+20)+35)
+            button.clicked.connect(self.removeTempDataSet)
             k = k+1
 
         self.snapshotWindow.setLayout(self.snapshotGrid)
         self.snapshotWindow.setGeometry(300,200,500,400)
         self.snapshotWindow.setWindowTitle("Edit Existing Snapshots")
         self.snapshotWindow.show()
+    
+    def updateQDataSet(self):
+        self.CurrentNetwork.update_ds()
+
+    def removeTempDataSet(self):
+        sender = self.sender()
+        sender_name = sender.objectName()
+        sender_id = sender_name.split("Dataset")
+        sender_id = int(sender_id[1])
+        self.CurrentNetwork.remove_tempds(sender_id)
+
 
 ####################################################################################################################################################
 ####################################################################################################################################################
