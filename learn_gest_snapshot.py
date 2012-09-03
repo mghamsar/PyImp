@@ -7,7 +7,7 @@ from pybrain.supervised.trainers import BackpropTrainer
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.datasets import SupervisedDataSet
 from pybrain.structure.modules import SigmoidLayer
-#from pybrain.tools.xml import networkwriter
+from pybrain.tools.xml import networkwriter
 
 import PySide
 from PySide.QtCore import *
@@ -37,36 +37,34 @@ class PyImpNetwork():
         self.data_input = {}
         self.data_output = {}
 
+        # store a list of the signals obtained from the device
+        self.input_names = []
+        self.output_names = []
+
+        #temporary array for storying single snapshots
+        self.temp_ds = {}
+        self.snapshot_count = 0
+
         self.learnMapperDevice = mapper.device("Implicit_LearnMapper",9002)
 
     # mapper signal handler (updates self.data_input[sig_indx]=new_float_value)
     def h(self,sig, f):
         try:
-            #print sig.name
             if '/in' in sig.name:
                 s_indx = str.split(sig.name,"/in")
-                self.data_input[int(s_indx[1])]=float(f)
+                self.data_input[int(s_indx[1])] = float(f)
+
+                if sig.name not in self.input_names:
+                    self.input_names.append(sig.name)   
 
             elif '/out' in sig.name:
-                if (self.learning == 1):
-                    print "FOUND /out and in learn mode", f
-                    s_indx = str.split(sig.name,"/out")
-                    self.data_output[int(s_indx[1])]=float(f)
-                    print self.data_output[int(s_indx[1])]
-        except:
-            print "Exception, Handler not working"
-
-    def hout(self,sig,f):
-        try:
-            if '/out' in sig.name:
-                if (self.learning == 1):
-                    print "FOUND /out and in learn mode", f
                     s_indx = str.split(sig.name,"/out")
                     self.data_output[int(s_indx[1])] = float(f)
-                    print "Value saved to data_output", self.data_output[int(s_indx[1])]
-        except:
-            print "Exception, Handler not working"
+                    print "Output Value from data_output", self.data_output[int(s_indx[1])]
 
+            #print self.input_names 
+        except:
+           print "Exception, Handler not working"
 
     def createANN(self,n_inputs,n_hidden,n_outputs):
         #create ANN
@@ -89,7 +87,7 @@ class PyImpNetwork():
         #create mapper signals (n_outputs)
         for l_num in range(n_outputs):
             self.l_outputs[l_num] = self.learnMapperDevice.add_output("/out%d"%l_num, 1, 'f',None,0.0,1.0)
-            self.l_outputs[l_num].set_query_callback(self.hout)
+            self.l_outputs[l_num].set_query_callback(self.h)
             print ("creating output","/out"+str(l_num))
         
         # Set initial Data Output values for Network to 0
@@ -149,22 +147,34 @@ class PyImpNetwork():
 
     def learn_callback(self):
 
-        if self.learning == 0:
-            print ("learning is", self.learning)
-            self.learning = 1
+        for index in range(self.num_outputs):
+            self.data_output[index] = self.l_outputs[index].query_remote()
+            #print self.data_output[index]
 
-        elif self.learning == 1:
-            print ("learning is", self.learning)
-            self.learning = 0
+        # Save data to a temporary database in case they need to be edited before adding to the Supervised Dataset
+        self.snapshot_count = self.snapshot_count+1
+        self.temp_ds[self.snapshot_count] = []
+        self.temp_ds[self.snapshot_count].append(tuple(self.data_input.values()))
+        self.temp_ds[self.snapshot_count].append(tuple(self.data_output.values()))
+
+        print self.snapshot_count, "(Input, Output)", self.temp_ds[self.snapshot_count]
+
+    def remove_tempds(self,objectNum):
+
+        if objectNum in self.temp_ds.iterkeys():
+            print "Found DS to delete", objectNum
+            del self.temp_ds[objectNum]
+        else: 
+            print "Error, This database entry does not exist"
 
     def compute_callback(self):
 
-        if self.compute==1:
-            self.compute =0
-            print ("Compute network output is now OFF!")
-        elif self.compute ==0:
-            self.compute =1
-            print ("Compute network output is now ON!")
+        activated_out = self.net.activate(tuple(self.data_input.values()))
+
+        for out_index in range(self.num_outputs):
+            self.data_output[out_index] = activated_out[out_index]
+            self.l_outputs[out_index].update(self.data_output[out_index])
+            # TO DO: Update Outputs Plot dynamically with new values
 
     def train_callback(self):
         self.trainer = BackpropTrainer(self.net, learningrate=0.01, lrdecay=1, momentum=0.0, verbose=True)
@@ -180,30 +190,8 @@ class PyImpNetwork():
         print ("\n")
         print 'Total epochs:', self.trainer.totalepochs
 
-    def main_loop(self):
-        self.learnMapperDevice.poll(1)
-
-        if ((self.learning == 1) and (self.compute == 0)):
-            
-            # Query output values upon change in GUI
-            for index in range(self.num_outputs):
-                self.data_output[index] = self.l_outputs[index].query_remote()
-                print self.data_output[index]
-
-            print ("Inputs: ")
-            print (tuple(self.data_input.values()))
-            print ("Outputs: ")
-            print (tuple(self.data_output.values()))
-
-            self.ds.addSample(tuple(self.data_input.values()),tuple(self.data_output.values()))
-        
-        if ((self.compute == 1) and (self.learning == 0)):
-            activated_out = self.net.activate(tuple(self.data_input.values()))
-
-            for out_index in range(self.num_outputs):
-                self.data_output[out_index] = activated_out[out_index]
-                self.l_outputs[out_index].update(self.data_output[out_index])
-                # TO DO: Update Outputs Plot dynamically with new values
+    def update_ds(self):
+        self.ds.addSample(tuple(self.data_input.values()),tuple(self.data_output.values()))
 
 ####################################################################################################################################
 
@@ -226,7 +214,7 @@ class PyImpUI(QWidget):
         #print "WIDGETS", widgets
 
         #Load UI created in QT Designer
-        self.loadCustomWidget("PyImpMainWindow.ui")
+        self.loadCustomWidget("PyImpMainWindowSnapShot.ui")
 
         self.loadDataButton = self.findChild(QWidget,"loadDataButton")
         self.saveDataButton = self.findChild(QWidget,"saveDataButton")
@@ -246,6 +234,9 @@ class PyImpUI(QWidget):
 
         self.chooseClassifier = self.findChild(QWidget,"chooseClassifierComboBox")
 
+        self.numberOfSnapshots = self.findChild(QLabel,"noSnapshots")
+        self.editSnapshots = self.findChild(QWidget,"editSnapshots")
+
         # Activate the Buttons in the Initial Screen
         self.loadDataButton.clicked.connect(self.loadQDataset)
         self.saveDataButton.clicked.connect(self.saveQDataset)
@@ -256,6 +247,7 @@ class PyImpUI(QWidget):
         self.resetClassifierButton.clicked.connect(self.clearQNetwork)
         self.clearDataButton.clicked.connect(self.clearQDataSet)
         self.processOutputButton.clicked.connect(self.computeQCallback)
+        self.editSnapshots.clicked.connect(self.openEditSnapshotsWindow)
 
         self.middleLayerEnable.toggle()
         self.middleLayerEnable.stateChanged.connect(self.enableSliders)
@@ -264,19 +256,7 @@ class PyImpUI(QWidget):
         self.show()
 
     def QUpdate(self):
-        self.CurrentNetwork.learnMapperDevice.poll(1)
-        self.CurrentNetwork.main_loop()
-
-    def enableSliders(self,state):
-
-        if state == Qt.Checked:
-            #print "Middle Sliders Now Enabled"
-            self.setSlidersButton.show()
-            self.setSlidersButton.clicked.connect(self.on_setSlidersButton_clicked)
-
-        else:
-            #print "Middle Sliders Now Disabled"
-            self.setSlidersButton.hide()        
+        self.CurrentNetwork.learnMapperDevice.poll(1)       
 
     def loadCustomWidget(self,UIfile):
         loader = QUiLoader()
@@ -286,7 +266,18 @@ class PyImpUI(QWidget):
         self.setWindowTitle("Implicit Mapper")   
         file_ui.close()
 
-    def on_setSlidersButton_clicked(self):
+    def enableSliders(self,state):
+
+        if state == Qt.Checked:
+            #print "Middle Sliders Now Enabled"
+            self.setSlidersButton.show()
+            self.setSlidersButton.clicked.connect(self.openEditSlidersWindow)
+
+        else:
+            #print "Middle Sliders Now Disabled"
+            self.setSlidersButton.hide() 
+
+    def openEditSlidersWindow(self):
 
         self.slidersWindow = QMainWindow()
         self.slidersWindow.setGeometry(300,200,500,400)
@@ -385,6 +376,7 @@ class PyImpUI(QWidget):
     
     def clearQDataSet(self):
         PyImpNetwork.clear_dataset(self.CurrentNetwork)
+        self.numberOfSnapshots.setText('0')
 
     def loadQNetwork(self):
 
@@ -415,14 +407,16 @@ class PyImpUI(QWidget):
     def learnQCallback(self):
 
         PyImpNetwork.learn_callback(self.CurrentNetwork)
+        cur_count = int(self.numberOfSnapshots.text())
+        self.numberOfSnapshots.setText(str(cur_count+1))
 
         if self.CurrentNetwork.learning == 1:
             self.getDataButton.setDown(1)
-            self.getDataButton.setText("Data ON")
+            self.getDataButton.setText("Taking Snapshot")
 
         elif self.CurrentNetwork.learning == 0:
             self.getDataButton.setDown(0)
-            self.getDataButton.setText("Get Data")
+            self.getDataButton.setText("Snapshot")
 
     def trainQCallback(self):
         PyImpNetwork.train_callback(self.CurrentNetwork)
@@ -437,6 +431,103 @@ class PyImpUI(QWidget):
         elif self.CurrentNetwork.compute ==0:
             self.processOutputButton.setDown(0)
             self.processOutputButton.setText("Process Results")
+
+    def openEditSnapshotsWindow(self):
+
+        self.snapshotWindow = QMainWindow()
+
+
+        self.addtoDsButton = QPushButton("Update Dataset")
+        self.addtoDsButton.setGeometry(320,350,170,40)
+        self.addtoDsButton.setParent(self.snapshotWindow)
+        self.addtoDsButton.clicked.connect(self.updateQDataSet)
+        
+        self.snapshotGrid = QGridLayout()
+        self.snapshotGrid.setHorizontalSpacing(10)
+        self.snapshotGrid.setVerticalSpacing(10)
+
+        # Maintain a list of created widgets
+        button_list = []
+        label_list = []
+
+        #List of Grid Positions
+        pos = []
+
+        for s, val in self.CurrentNetwork.temp_ds.iteritems():
+            s_button = QPushButton("Remove")
+            s_label = QLabel("Snapshot %s"%s)
+            s_button.resize(80,20)
+            s_label.resize(80,30)
+            s_button.setObjectName("Dataset%d"%s)
+            s_label.setObjectName("LabelDataset%d"%s)
+            s_label.setParent(self.snapshotWindow)
+            s_button.setParent(self.snapshotWindow)
+
+            #These lists contain the actual QWidgets
+            button_list.append(s_button)
+            label_list.append(s_label)
+            
+            #Grid Positions
+            p = s-1
+            pos.append((p/5,p%5))
+
+        #Display labels on Grid
+        j = 0
+        for label in label_list:
+            label.setParent(self.snapshotWindow)
+            label.setAlignment(Qt.AlignCenter)
+            self.snapshotGrid.addWidget(label,pos[j][0],pos[j][1],Qt.AlignCenter)
+            label.move((pos[j][1])*(label.width()+5)+10,(pos[j][0])*(label.height()+10)+10)
+            j = j+1
+        
+        #Display buttons on Grid
+        k = 0
+        for button in button_list:
+            button.setParent(self.snapshotWindow)
+            self.snapshotGrid.addWidget(button,pos[k][0]+1,pos[k][1],Qt.AlignCenter)
+            button.move((pos[k][1])*(button.width()+5)+10,(pos[k][0])*(button.height()+20)+35)
+            button.clicked.connect(self.removeTempDataSet)
+            k = k+1
+
+        self.snapshotWindow.setLayout(self.snapshotGrid)
+        self.snapshotWindow.setGeometry(300,200,500,400)
+        self.snapshotWindow.setWindowTitle("Edit Existing Snapshots")
+        self.snapshotWindow.show()
+    
+    def updateQDataSet(self):
+        self.CurrentNetwork.update_ds()
+
+    def removeTempDataSet(self):
+        sender = self.sender()
+        sender_name = sender.objectName()
+        sender_id = sender_name.split("Dataset")
+        sender_id = int(sender_id[1])
+        print "Sender ID", sender_id
+        
+        self.CurrentNetwork.remove_tempds(sender_id)
+        print "Number of Items", self.snapshotGrid.count(), range(1,self.snapshotGrid.count()+1)
+
+        for i in range(1,self.snapshotGrid.count()+1):
+
+            b = self.snapshotGrid.takeAt(i)
+            b_widget = b.widget()
+            print b_widget
+
+            if b_widget.objectName() == str(sender_id): 
+
+                b.widget().setParent(None)
+                b.widget().deleteLater()
+
+        #del b
+        self.snapshotWindow.update()
+
+        # b_label = self.snapshotWindow.findChild(QLabel,"LabelDataset%d"%sender_id)
+        # print b_label
+
+
+        
+
+
 
 ####################################################################################################################################################
 ####################################################################################################################################################
