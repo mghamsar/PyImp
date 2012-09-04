@@ -157,11 +157,13 @@ class PyImpNetwork():
 
         # Save data to a temporary database in case they need to be edited before adding to the Supervised Dataset
         self.snapshot_count = self.snapshot_count+1
-        self.temp_ds[self.snapshot_count] = []
-        self.temp_ds[self.snapshot_count].append(tuple(self.data_input.values()))
-        self.temp_ds[self.snapshot_count].append(tuple(self.data_output.values()))
+        self.temp_ds[self.snapshot_count] = {}
+        self.temp_ds[self.snapshot_count]["input"] = tuple(self.data_input.values())
+        self.temp_ds[self.snapshot_count]["output"] = tuple(self.data_output.values())
 
         print self.snapshot_count, "(Input, Output)", self.temp_ds[self.snapshot_count]
+
+        self.update_ds()
 
     def remove_tempds(self,objectNum):
 
@@ -196,7 +198,8 @@ class PyImpNetwork():
         print 'Total epochs:', self.trainer.totalepochs
 
     def update_ds(self):
-        self.ds.addSample(tuple(self.data_input.values()),tuple(self.data_output.values()))
+        for key in self.temp_ds.iterkeys(): 
+            self.ds.addSample(self.temp_ds[key]["input"],self.temp_ds[key]["output"])
 
 ####################################################################################################################################
 
