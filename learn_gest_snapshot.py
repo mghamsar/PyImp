@@ -137,6 +137,10 @@ class PyImpNetwork():
         self.net = networkreader.NetworkReader.readFrom(open_filename)
 
     def clear_dataset(self):
+        if self.temp_ds != 0:
+            self.temp_ds.clear()
+            self.snapshot_count = 0
+
         if self.ds != 0:
             self.ds.clear()
 
@@ -164,6 +168,7 @@ class PyImpNetwork():
         if objectNum in self.temp_ds.iterkeys():
             print "Found DS to delete", objectNum
             del self.temp_ds[objectNum]
+
         else: 
             print "Error, This database entry does not exist"
 
@@ -376,7 +381,7 @@ class PyImpUI(QWidget):
     
     def clearQDataSet(self):
         PyImpNetwork.clear_dataset(self.CurrentNetwork)
-        self.numberOfSnapshots.setText('0')
+        self.numberOfSnapshots.setText(str(self.CurrentNetwork.snapshot_count))
 
     def loadQNetwork(self):
 
@@ -518,16 +523,9 @@ class PyImpUI(QWidget):
                 b.widget().setParent(None)
                 b.widget().deleteLater()
 
-        #del b
         self.snapshotWindow.update()
 
         # b_label = self.snapshotWindow.findChild(QLabel,"LabelDataset%d"%sender_id)
-        # print b_label
-
-
-        
-
-
 
 ####################################################################################################################################################
 ####################################################################################################################################################
