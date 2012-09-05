@@ -547,21 +547,31 @@ class PyImpUI(QWidget):
 
     def drawBars(self, event):
 
-        #rect = QRect(self.inputPlot.x(),self.inputPlot.y(),100,100)
+        rect1 = QRect(self.inputPlot.x(),self.inputPlot.y(),self.inputPlot.width(), self.inputPlot.height())
+        rect2 = QRect(self.middlePlot.x(),self.middlePlot.y(),self.middlePlot.width(),self.middlePlot.height())
+        rect3 = QRect(self.outputPlot.x(),self.outputPlot.y(),self.outputPlot.width(),self.outputPlot.height())
 
-        brush = QBrush(Qt.SolidPattern)
-        
-        brush.setStyle(Qt.Dense3Pattern)
-        self.qp.setBrush(brush)
-        self.qp.drawRect(self.inputPlot.x(), self.inputPlot.y(), self.inputPlot.width(), self.inputPlot.height())
-        
-        self.qp.setBrush(QColor(200,0,0))
-        self.qp.drawRect(self.middlePlot.x(), self.middlePlot.y(), self.middlePlot.width(), self.middlePlot.height())
-        
-        self.qp.setBrush(QColor(255,80,160))
-        self.qp.drawRect(self.outputPlot.x(), self.outputPlot.y(), self.outputPlot.width(), self.outputPlot.height())
+        brush1 = QBrush(Qt.SolidPattern)
+        brush1.setStyle(Qt.Dense3Pattern)
+        brush1.setColor(QColor(255,200,0))
 
+        brush2 = QBrush(Qt.SolidPattern)
+        brush2.setStyle(Qt.Dense3Pattern)
+        brush2.setColor(QColor(255,150,0))
+
+        brush3 = QBrush(Qt.SolidPattern)
+        brush3.setStyle(Qt.Dense3Pattern)
+        brush3.setColor(QColor(255,180,160))
+
+        self.qp.setBrush(brush1)
+        self.qp.drawRect((rect1.adjusted(0, 0, -1, -1)))
         
+        self.qp.setBrush(brush2)
+        self.qp.drawRect((rect2.adjusted(0, 0, -1, -1)))
+        
+        self.qp.setBrush(brush3)
+        self.qp.drawRect((rect3.adjusted(0, 0, -1, -1)))
+
         # scene = QGraphicsScene()
         # GraphicsView.setScene(scene)
         # pen = QPen(Qt.black,2)
