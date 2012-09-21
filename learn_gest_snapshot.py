@@ -137,6 +137,10 @@ class PyImpNetwork():
         self.net = networkreader.NetworkReader.readFrom(open_filename)
 
     def clear_dataset(self):
+        if self.temp_ds != 0:
+            self.temp_ds.clear()
+            self.snapshot_count = 0
+
         if self.ds != 0:
             self.ds.clear()
 
@@ -153,17 +157,20 @@ class PyImpNetwork():
 
         # Save data to a temporary database in case they need to be edited before adding to the Supervised Dataset
         self.snapshot_count = self.snapshot_count+1
-        self.temp_ds[self.snapshot_count] = []
-        self.temp_ds[self.snapshot_count].append(tuple(self.data_input.values()))
-        self.temp_ds[self.snapshot_count].append(tuple(self.data_output.values()))
+        self.temp_ds[self.snapshot_count] = {}
+        self.temp_ds[self.snapshot_count]["input"] = tuple(self.data_input.values())
+        self.temp_ds[self.snapshot_count]["output"] = tuple(self.data_output.values())
 
         print self.snapshot_count, "(Input, Output)", self.temp_ds[self.snapshot_count]
+
+        self.update_ds()
 
     def remove_tempds(self,objectNum):
 
         if objectNum in self.temp_ds.iterkeys():
             print "Found DS to delete", objectNum
             del self.temp_ds[objectNum]
+
         else: 
             print "Error, This database entry does not exist"
 
@@ -191,7 +198,8 @@ class PyImpNetwork():
         print 'Total epochs:', self.trainer.totalepochs
 
     def update_ds(self):
-        self.ds.addSample(tuple(self.data_input.values()),tuple(self.data_output.values()))
+        for key in self.temp_ds.iterkeys(): 
+            self.ds.addSample(self.temp_ds[key]["input"],self.temp_ds[key]["output"])
 
 ####################################################################################################################################
 
@@ -216,6 +224,7 @@ class PyImpUI(QWidget):
         #Load UI created in QT Designer
         self.loadCustomWidget("PyImpMainWindowSnapShot.ui")
 
+        # Button Widgets in the Main Interface
         self.loadDataButton = self.findChild(QWidget,"loadDataButton")
         self.saveDataButton = self.findChild(QWidget,"saveDataButton")
         self.loadMappingButton = self.findChild(QWidget,"loadMappingButton")
@@ -237,7 +246,13 @@ class PyImpUI(QWidget):
         self.numberOfSnapshots = self.findChild(QLabel,"noSnapshots")
         self.editSnapshots = self.findChild(QWidget,"editSnapshots")
 
-        # Activate the Buttons in the Initial Screen
+        #Graphics Views for the Signals
+        self.inputPlot = self.findChild(QWidget,"inputSignals")
+        self.outputPlot = self.findChild(QWidget,"outputSignals")
+        self.middlePlot = self.findChild(QWidget,"middleSignals")
+
+
+        # Activate the Buttons in the Main Interface
         self.loadDataButton.clicked.connect(self.loadQDataset)
         self.saveDataButton.clicked.connect(self.saveQDataset)
         self.loadMappingButton.clicked.connect(self.loadQNetwork)
@@ -360,7 +375,7 @@ class PyImpUI(QWidget):
         loadDialog.show()
 
         filename = loadDialog.getOpenFileName()
-        PyImpNetwork.load_dataset(self.CurrentNetwork,filename)
+        self.CurrentNetwork.load_dataset(filename)
 
     def saveQDataset(self):
 
@@ -375,8 +390,8 @@ class PyImpUI(QWidget):
         PyImpNetwork.save_dataset(self.CurrentNetwork,filename)
     
     def clearQDataSet(self):
-        PyImpNetwork.clear_dataset(self.CurrentNetwork)
-        self.numberOfSnapshots.setText('0')
+        self.CurrentNetwork.clear_dataset()
+        self.numberOfSnapshots.setText(str(self.CurrentNetwork.snapshot_count))
 
     def loadQNetwork(self):
 
@@ -388,7 +403,7 @@ class PyImpUI(QWidget):
         loadDialog.show()
 
         filename = loadDialog.getOpenFileName()
-        PyImpNetwork.load_dataset(self.CurrentNetwork)
+        self.CurrentNetwork.load_dataset()
 
     def saveQNetwork(self):
         # Create Dialog to save the file in directory
@@ -399,14 +414,14 @@ class PyImpUI(QWidget):
         saveDialog.show()
 
         filename = saveDialog.getSaveFileName()
-        PyImpNetwork.save_net(self.CurrentNetwork)
+        self.CurrentNetwork.save_net()
 
     def clearQNetwork(self):
-        PyImpNetwork.clear_network(self.CurrentNetwork)
+        self.CurrentNetwork.clear_network()
 
     def learnQCallback(self):
 
-        PyImpNetwork.learn_callback(self.CurrentNetwork)
+        self.CurrentNetwork.learn_callback()
         cur_count = int(self.numberOfSnapshots.text())
         self.numberOfSnapshots.setText(str(cur_count+1))
 
@@ -419,10 +434,11 @@ class PyImpUI(QWidget):
             self.getDataButton.setText("Snapshot")
 
     def trainQCallback(self):
-        PyImpNetwork.train_callback(self.CurrentNetwork)
+        self.CurrentNetwork.train_callback()
 
     def computeQCallback(self):
-        PyImpNetwork.compute_callback(self.CurrentNetwork)
+        print "Processing Output Now"
+        self.CurrentNetwork.compute_callback()
 
         if self.CurrentNetwork.compute==1:
             self.processOutputButton.setDown(1)
@@ -435,7 +451,6 @@ class PyImpUI(QWidget):
     def openEditSnapshotsWindow(self):
 
         self.snapshotWindow = QMainWindow()
-
 
         self.addtoDsButton = QPushButton("Update Dataset")
         self.addtoDsButton.setGeometry(320,350,170,40)
@@ -518,16 +533,49 @@ class PyImpUI(QWidget):
                 b.widget().setParent(None)
                 b.widget().deleteLater()
 
-        #del b
         self.snapshotWindow.update()
 
         # b_label = self.snapshotWindow.findChild(QLabel,"LabelDataset%d"%sender_id)
-        # print b_label
 
+    ############################################## Graph Drawing Methods Here #####################################################
 
+    def paintEvent(self, event):
+        self.qp = QPainter()
+        self.qp.begin(self)
+        self.drawBars(self.qp)
+        self.qp.end()
+
+    def drawBars(self, event):
+
+        rect1 = QRect(self.inputPlot.x(),self.inputPlot.y(),self.inputPlot.width(), self.inputPlot.height())
+        rect2 = QRect(self.middlePlot.x(),self.middlePlot.y(),self.middlePlot.width(),self.middlePlot.height())
+        rect3 = QRect(self.outputPlot.x(),self.outputPlot.y(),self.outputPlot.width(),self.outputPlot.height())
+
+        brush1 = QBrush(Qt.SolidPattern)
+        brush1.setStyle(Qt.Dense3Pattern)
+        brush1.setColor(QColor(255,200,0))
+
+        brush2 = QBrush(Qt.SolidPattern)
+        brush2.setStyle(Qt.Dense3Pattern)
+        brush2.setColor(QColor(255,150,0))
+
+        brush3 = QBrush(Qt.SolidPattern)
+        brush3.setStyle(Qt.Dense3Pattern)
+        brush3.setColor(QColor(255,180,160))
+
+        self.qp.setBrush(brush1)
+        self.qp.drawRect((rect1.adjusted(0, 0, -1, -1)))
         
+        self.qp.setBrush(brush2)
+        self.qp.drawRect((rect2.adjusted(0, 0, -1, -1)))
+        
+        self.qp.setBrush(brush3)
+        self.qp.drawRect((rect3.adjusted(0, 0, -1, -1)))
 
-
+        # scene = QGraphicsScene()
+        # GraphicsView.setScene(scene)
+        # pen = QPen(Qt.black,2)
+        # scene.addLine(0,0,200,100,pen)
 
 ####################################################################################################################################################
 ####################################################################################################################################################
