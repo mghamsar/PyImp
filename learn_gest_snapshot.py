@@ -272,6 +272,7 @@ class PyImpUI(QWidget):
 
     def QUpdate(self):
         self.CurrentNetwork.learnMapperDevice.poll(1)
+        self.update()
 
     def loadCustomWidget(self,UIfile):
         loader = QUiLoader()
@@ -542,6 +543,7 @@ class PyImpUI(QWidget):
     def paintEvent(self, event):
         self.qp = QPainter()
         self.qp.begin(self)
+        self.qp.setRenderHint(QPainter.Antialiasing)
         self.drawBars(self.qp)
         self.plotSignals()
         self.qp.end()
@@ -573,11 +575,13 @@ class PyImpUI(QWidget):
         self.qp.setBrush(brush3)
         self.qp.drawRect((rect3.adjusted(0, 0, -1, -1)))
 
+        self.barRegion = QRegion(rect1.x(),rect3.x()+rect3.width(),rect1.y(),rect1.height())
         # scene = QGraphicsScene()
         # GraphicsView.setScene(scene)
         # pen = QPen(Qt.black,2)
         # scene.addLine(0,0,200,100,pen)
 
+    # Paint a single bar as part of a bar-graph
     def drawSignalBar(self,x,y,barwidth,barheight):
 
         brush = QBrush(Qt.SolidPattern)
@@ -588,21 +592,22 @@ class PyImpUI(QWidget):
         self.qp.setBrush(brush)
         self.qp.drawRect((rect.adjusted(0, 0, -1, -1)))
 
-        # scene = QGraphicsScene()
-
+    # This function plots the individual signals coming into implicit mapper from both the input and the output
     def plotSignals(self):
         print "Length of Input Signals", len(self.CurrentNetwork.data_input.keys())
-        print "rectangle y", self.inputPlot.y()
-        barwidth = 20
         
-        cnt = 1
+        cnt = 0
+        y = self.inputPlot.y()+self.inputPlot.height()
+        barwidth = self.inputPlot.width()/len(self.CurrentNetwork.data_input.keys())-5
+        
         for inputsig, sigvalue in self.CurrentNetwork.data_input.iteritems():
             print "created rectangle %s"%inputsig, sigvalue
-            x =  self.inputPlot.x()+cnt*barwidth
+            x = self.inputPlot.x()+5+cnt*barwidth
+            barheight = (-1)*abs(sigvalue*100)
 
-            self.drawSignalBar(x,self.inputPlot.y(),barwidth,abs(sigvalue*100))
-            #print "drew rect%s"%cnt
+            self.drawSignalBar(x,y,barwidth,barheight)
             cnt = cnt+1
+
 ####################################################################################################################################################
 ####################################################################################################################################################
 
