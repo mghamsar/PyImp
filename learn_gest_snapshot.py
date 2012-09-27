@@ -271,7 +271,7 @@ class PyImpUI(QWidget):
         self.show()
 
     def QUpdate(self):
-        self.CurrentNetwork.learnMapperDevice.poll(1)       
+        self.CurrentNetwork.learnMapperDevice.poll(1)
 
     def loadCustomWidget(self,UIfile):
         loader = QUiLoader()
@@ -543,6 +543,7 @@ class PyImpUI(QWidget):
         self.qp = QPainter()
         self.qp.begin(self)
         self.drawBars(self.qp)
+        self.plotSignals()
         self.qp.end()
 
     def drawBars(self, event):
@@ -577,6 +578,31 @@ class PyImpUI(QWidget):
         # pen = QPen(Qt.black,2)
         # scene.addLine(0,0,200,100,pen)
 
+    def drawSignalBar(self,x,y,barwidth,barheight):
+
+        brush = QBrush(Qt.SolidPattern)
+        brush.setStyle(Qt.Dense3Pattern)
+        brush.setColor(QColor(0,100,160))
+        
+        rect = QRect(x,y,barwidth,barheight)
+        self.qp.setBrush(brush)
+        self.qp.drawRect((rect.adjusted(0, 0, -1, -1)))
+
+        # scene = QGraphicsScene()
+
+    def plotSignals(self):
+        print "Length of Input Signals", len(self.CurrentNetwork.data_input.keys())
+        print "rectangle y", self.inputPlot.y()
+        barwidth = 20
+        
+        cnt = 1
+        for inputsig, sigvalue in self.CurrentNetwork.data_input.iteritems():
+            print "created rectangle %s"%inputsig, sigvalue
+            x =  self.inputPlot.x()+cnt*barwidth
+
+            self.drawSignalBar(x,self.inputPlot.y(),barwidth,abs(sigvalue*100))
+            #print "drew rect%s"%cnt
+            cnt = cnt+1
 ####################################################################################################################################################
 ####################################################################################################################################################
 
