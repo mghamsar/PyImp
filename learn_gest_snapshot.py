@@ -50,6 +50,10 @@ class PyImpNetwork():
 
     # mapper signal handler (updates self.data_input[sig_indx]=new_float_value)
     def h(self,sig, f):
+
+        if f == None:
+            return
+
         try:
             if '/in' in sig.name:
                 s_indx = str.split(sig.name,"/in")
@@ -61,12 +65,12 @@ class PyImpNetwork():
             elif '/out' in sig.name:
                     s_indx = str.split(sig.name,"/out")
                     self.data_output[int(s_indx[1])] = float(f)
-                    #print "Output Value from data_output", self.data_output[int(s_indx[1])]
+                    print "Output Value from data_output", self.data_output[int(s_indx[1])]
             
             #print "Output Value from data_output", self.data_output.values()
             #print self.input_names 
-        except:
-           print "Exception, Handler not working"
+        except Exception, e:
+           print "Exception, Handler not working:", e
 
     def createANN(self,n_inputs,n_hidden,n_outputs):
         #create ANN
@@ -201,9 +205,7 @@ class PyImpNetwork():
     def update_output(self):
         # Get Value from the output by sending a query request
         for index in range(self.num_outputs):
-            self.data_output[index] = self.l_outputs[index].query_remote()
-        
-        print self.data_output.values()
+            self.l_outputs[index].query_remote()
 
     def update_ds(self):
         for key in self.temp_ds.iterkeys(): 
@@ -220,8 +222,7 @@ class PyImpUI(QWidget):
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.QUpdate) 
-        # self.connect(timer, SIGNAL("timeout()"), )
-        self.timer.start(1000)
+        self.timer.start(20)
         
     def initUI(self):
 
@@ -283,8 +284,8 @@ class PyImpUI(QWidget):
         self.show()
 
     def QUpdate(self):
-        self.CurrentNetwork.learnMapperDevice.poll(1)
-        #self.CurrentNetwork.update_output()
+        self.CurrentNetwork.learnMapperDevice.poll(0)
+        self.CurrentNetwork.update_output()
         self.update()
 
     def loadCustomWidget(self,UIfile):
