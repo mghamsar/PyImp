@@ -36,6 +36,7 @@ class PyImpNetwork():
         #For the Artificial Neural Network
         self.data_input = {}
         self.data_output = {}
+        self.data_middle = {}
 
         # store a list of the signals obtained from the device
         self.input_names = []
@@ -258,7 +259,10 @@ class PyImpUI(QWidget):
         self.inputPlot = self.findChild(QWidget,"inputSignals")
         self.outputPlot = self.findChild(QWidget,"outputSignals")
         self.middlePlot = self.findChild(QWidget,"middleSignals")
+        self.middlePlot.hide()
 
+        self.midLabel = self.findChild(QLabel,"midlabel")
+        self.midLabel.hide()
 
         # Activate the Buttons in the Main Interface
         self.loadDataButton.clicked.connect(self.loadQDataset)
@@ -296,11 +300,15 @@ class PyImpUI(QWidget):
         if state == Qt.Checked:
             #print "Middle Sliders Now Enabled"
             self.setSlidersButton.show()
+            self.midLabel.show()
+            self.middlePlot.show()
             self.setSlidersButton.clicked.connect(self.openEditSlidersWindow)
 
         else:
             #print "Middle Sliders Now Disabled"
             self.setSlidersButton.hide() 
+            self.middlePlot.hide()
+            self.midLabel.hide()
 
     def openEditSlidersWindow(self):
 
@@ -370,10 +378,18 @@ class PyImpUI(QWidget):
             sliders[s_index].setOrientation(Qt.Horizontal)
             sliders[s_index].setRange(0,100)
             sliders[s_index].setParent(self.slidersWindow)
+            sliders[s_index].valueChanged.connect(self.getSliderValue)
             self.layoutSliders.addWidget(sliders[s_index])
 
         self.slidersWindow.show()
         self.setButton.setDisabled(1)
+    
+    def getSliderValue(self):
+        sender = self.sender()
+        sender_name = sender.objectName()
+
+        self.CurrentNetwork.data_middle[sender_name] = sender.value()
+        #print "Middle Slider Values", self.CurrentNetwork.data_middle.values()
 
     def loadQDataset(self):
 
@@ -538,8 +554,7 @@ class PyImpUI(QWidget):
             b_widget = b.widget()
             print b_widget
 
-            if b_widget.objectName() == str(sender_id): 
-
+            if b_widget.objectName() == str(sender_id):
                 b.widget().setParent(None)
                 b.widget().deleteLater()
 
@@ -553,67 +568,54 @@ class PyImpUI(QWidget):
         self.qp = QPainter()
         self.qp.begin(self)
         self.qp.setRenderHint(QPainter.Antialiasing)
-        self.drawPlotBackgrounds()
-        self.plotSignals()
-        self.qp.end()
-
-    def drawPlotBackgrounds(self):
-
-        rect1 = QRect(self.inputPlot.x(),self.inputPlot.y(),self.inputPlot.width(), self.inputPlot.height())
-        rect2 = QRect(self.middlePlot.x(),self.middlePlot.y(),self.middlePlot.width(),self.middlePlot.height())
-        rect3 = QRect(self.outputPlot.x(),self.outputPlot.y(),self.outputPlot.width(),self.outputPlot.height())
-
-        brush1 = QBrush(Qt.SolidPattern)
-        brush1.setStyle(Qt.Dense3Pattern)
-        brush1.setColor(QColor(255,200,0))
-
-        brush2 = QBrush(Qt.SolidPattern)
-        brush2.setStyle(Qt.Dense3Pattern)
-        brush2.setColor(QColor(255,150,0))
-
-        brush3 = QBrush(Qt.SolidPattern)
-        brush3.setStyle(Qt.Dense3Pattern)
-        brush3.setColor(QColor(255,180,160))
-
-        self.qp.setBrush(brush1)
-        self.qp.drawRect((rect1.adjusted(0, 0, -1, -1)))
-        
-        self.qp.setBrush(brush2)
-        self.qp.drawRect((rect2.adjusted(0, 0, -1, -1)))
-        
-        self.qp.setBrush(brush3)
-        self.qp.drawRect((rect3.adjusted(0, 0, -1, -1)))
+        self.paintSignals()
+        self.qp.end()        
 
     # Paint a single bar as part of a bar-graph
-    def drawBar(self,x,y,barwidth,barheight):
+    def paintBar(self,x,y,barwidth,barheight):
 
-        brush = QBrush(Qt.SolidPattern)
-        brush.setStyle(Qt.Dense3Pattern)
-        brush.setColor(QColor(0,100,160))
-        
+        brush = QBrush(QColor(0,100,160),Qt.SolidPattern)
         rect = QRect(x,y,barwidth,barheight)
         self.qp.setBrush(brush)
         self.qp.drawRect((rect.adjusted(0, 0, -1, -1)))
 
     # This function plots the individual signals coming into implicit mapper from both the input and the output
-    def plotSignals(self):
+    def paintSignals(self):
         #print "Length of Input Signals", len(self.CurrentNetwork.data_input.keys())
+
+        # Input Plot Background
+        self.inputRect = QRect(self.inputPlot.x(),self.inputPlot.y(),self.inputPlot.width(), self.inputPlot.height())
+        brush1 = QBrush(QColor(255,200,0),Qt.Dense3Pattern)
+        self.qp.setBrush(brush1)
+        self.qp.drawRect((self.inputRect.adjusted(0, 0, -1, -1)))
+
+        # Middle Plot Background
+        self.middleRect = QRect(self.middlePlot.x(),self.middlePlot.y(),self.middlePlot.width(),self.middlePlot.height())
+        brush = QBrush(QColor(255,150,0),Qt.Dense3Pattern)
+        self.qp.setBrush(brush)
+        self.qp.drawRect((self.middleRect.adjusted(0, 0, -1, -1)))
+
+        # Output Plot Background
+        self.outputRect = QRect(self.outputPlot.x(),self.outputPlot.y(),self.outputPlot.width(),self.outputPlot.height())
+        brush2 = QBrush(QColor(255,180,160),Qt.Dense3Pattern)
+        self.qp.setBrush(brush2)
+        self.qp.drawRect((self.outputRect.adjusted(0, 0, -1, -1)))
         
-        y = self.inputPlot.y() + self.inputPlot.height()
-        
+        # Input Bars 
         barwidth_in = self.inputPlot.width()/len(self.CurrentNetwork.data_input.keys())-5
         cnt = 0
         for inputsig, sigvalue in self.CurrentNetwork.data_input.iteritems():
             #print "input rectangle %s"%inputsig, sigvalue
-            self.drawBar(self.inputPlot.x()+5+cnt*barwidth_in,y,barwidth_in,(-1)*abs(sigvalue*self.inputPlot.height()))
+            self.paintBar(self.inputPlot.x()+5+cnt*barwidth_in,self.inputPlot.y() + self.inputPlot.height(),barwidth_in,(-1)*abs(sigvalue*self.inputPlot.height()))
             cnt = cnt+1
-        
+
+        # Output Bars
         # print "Length of Ouptput Signals", len(self.CurrentNetwork.data_output.keys())
         barwidth_out = self.outputPlot.width()/len(self.CurrentNetwork.data_output.keys())-5
         cnt2 = 0 
         for outputsig, outvalue in self.CurrentNetwork.data_output.iteritems():
             #print "output rectangle %s"%outputsig, outvalue
-            self.drawBar(self.outputPlot.x()+5+cnt2*barwidth_out,y,barwidth_out,(-1)*abs(outvalue*self.outputPlot.height()))
+            self.paintBar(self.outputPlot.x()+5+cnt2*barwidth_out,self.outputPlot.y() + self.outputPlot.height(),barwidth_out,(-1)*abs(outvalue*self.outputPlot.height()))
             cnt2 = cnt2+1
 
 ####################################################################################################################################################
