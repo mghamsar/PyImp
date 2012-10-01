@@ -60,8 +60,9 @@ class PyImpNetwork():
             elif '/out' in sig.name:
                     s_indx = str.split(sig.name,"/out")
                     self.data_output[int(s_indx[1])] = float(f)
-                    print "Output Value from data_output", self.data_output[int(s_indx[1])]
-
+                    #print "Output Value from data_output", self.data_output[int(s_indx[1])]
+            
+            #print "Output Value from data_output", self.data_output.values()
             #print self.input_names 
         except:
            print "Exception, Handler not working"
@@ -151,9 +152,7 @@ class PyImpNetwork():
 
     def learn_callback(self):
 
-        for index in range(self.num_outputs):
-            self.data_output[index] = self.l_outputs[index].query_remote()
-            #print self.data_output[index]
+        self.update_output()
 
         # Save data to a temporary database in case they need to be edited before adding to the Supervised Dataset
         self.snapshot_count = self.snapshot_count+1
@@ -161,6 +160,7 @@ class PyImpNetwork():
         self.temp_ds[self.snapshot_count]["input"] = tuple(self.data_input.values())
         self.temp_ds[self.snapshot_count]["output"] = tuple(self.data_output.values())
 
+        print "Values before going to temp_ds", self.data_input.values(), "   ", self.data_output.values()
         print self.snapshot_count, "(Input, Output)", self.temp_ds[self.snapshot_count]
 
         self.update_ds()
@@ -197,6 +197,13 @@ class PyImpNetwork():
         print ("\n")
         print 'Total epochs:', self.trainer.totalepochs
 
+    def update_output(self):
+        # Get Value from the output by sending a query request
+        for index in range(self.num_outputs):
+            self.data_output[index] = self.l_outputs[index].query_remote()
+        
+        print self.data_output.values()
+
     def update_ds(self):
         for key in self.temp_ds.iterkeys(): 
             self.ds.addSample(self.temp_ds[key]["input"],self.temp_ds[key]["output"])
@@ -210,9 +217,10 @@ class PyImpUI(QWidget):
         self.CurrentNetwork = PyImpNetwork()
         self.initUI()
 
-        timer = QTimer(self)
-        self.connect(timer, SIGNAL("timeout()"), self.QUpdate)
-        timer.start(50)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.QUpdate) 
+        # self.connect(timer, SIGNAL("timeout()"), )
+        self.timer.start(1000)
         
     def initUI(self):
 
@@ -272,6 +280,7 @@ class PyImpUI(QWidget):
 
     def QUpdate(self):
         self.CurrentNetwork.learnMapperDevice.poll(1)
+        #self.CurrentNetwork.update_output()
         self.update()
 
     def loadCustomWidget(self,UIfile):
@@ -544,11 +553,11 @@ class PyImpUI(QWidget):
         self.qp = QPainter()
         self.qp.begin(self)
         self.qp.setRenderHint(QPainter.Antialiasing)
-        self.drawBars(self.qp)
+        self.drawPlotBackgrounds()
         self.plotSignals()
         self.qp.end()
 
-    def drawBars(self, event):
+    def drawPlotBackgrounds(self):
 
         rect1 = QRect(self.inputPlot.x(),self.inputPlot.y(),self.inputPlot.width(), self.inputPlot.height())
         rect2 = QRect(self.middlePlot.x(),self.middlePlot.y(),self.middlePlot.width(),self.middlePlot.height())
@@ -575,14 +584,8 @@ class PyImpUI(QWidget):
         self.qp.setBrush(brush3)
         self.qp.drawRect((rect3.adjusted(0, 0, -1, -1)))
 
-        self.barRegion = QRegion(rect1.x(),rect3.x()+rect3.width(),rect1.y(),rect1.height())
-        # scene = QGraphicsScene()
-        # GraphicsView.setScene(scene)
-        # pen = QPen(Qt.black,2)
-        # scene.addLine(0,0,200,100,pen)
-
     # Paint a single bar as part of a bar-graph
-    def drawSignalBar(self,x,y,barwidth,barheight):
+    def drawBar(self,x,y,barwidth,barheight):
 
         brush = QBrush(Qt.SolidPattern)
         brush.setStyle(Qt.Dense3Pattern)
@@ -594,19 +597,24 @@ class PyImpUI(QWidget):
 
     # This function plots the individual signals coming into implicit mapper from both the input and the output
     def plotSignals(self):
-        print "Length of Input Signals", len(self.CurrentNetwork.data_input.keys())
+        #print "Length of Input Signals", len(self.CurrentNetwork.data_input.keys())
         
+        y = self.inputPlot.y() + self.inputPlot.height()
+        
+        barwidth_in = self.inputPlot.width()/len(self.CurrentNetwork.data_input.keys())-5
         cnt = 0
-        y = self.inputPlot.y()+self.inputPlot.height()
-        barwidth = self.inputPlot.width()/len(self.CurrentNetwork.data_input.keys())-5
-        
         for inputsig, sigvalue in self.CurrentNetwork.data_input.iteritems():
-            print "created rectangle %s"%inputsig, sigvalue
-            x = self.inputPlot.x()+5+cnt*barwidth
-            barheight = (-1)*abs(sigvalue*100)
-
-            self.drawSignalBar(x,y,barwidth,barheight)
+            #print "input rectangle %s"%inputsig, sigvalue
+            self.drawBar(self.inputPlot.x()+5+cnt*barwidth_in,y,barwidth_in,(-1)*abs(sigvalue*self.inputPlot.height()))
             cnt = cnt+1
+        
+        # print "Length of Ouptput Signals", len(self.CurrentNetwork.data_output.keys())
+        barwidth_out = self.outputPlot.width()/len(self.CurrentNetwork.data_output.keys())-5
+        cnt2 = 0 
+        for outputsig, outvalue in self.CurrentNetwork.data_output.iteritems():
+            #print "output rectangle %s"%outputsig, outvalue
+            self.drawBar(self.outputPlot.x()+5+cnt2*barwidth_out,y,barwidth_out,(-1)*abs(outvalue*self.outputPlot.height()))
+            cnt2 = cnt2+1
 
 ####################################################################################################################################################
 ####################################################################################################################################################
