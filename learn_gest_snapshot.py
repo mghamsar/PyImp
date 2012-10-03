@@ -65,7 +65,7 @@ class PyImpNetwork():
             elif '/out' in sig.name:
                     s_indx = str.split(sig.name,"/out")
                     self.data_output[int(s_indx[1])] = float(f)
-                    print "Output Value from data_output", self.data_output[int(s_indx[1])]
+                    #print "Output Value from data_output", self.data_output[int(s_indx[1])]
             
             #print "Output Value from data_output", self.data_output.values()
             #print self.input_names 
@@ -605,19 +605,41 @@ class PyImpUI(QWidget):
         # Input Bars 
         barwidth_in = self.inputPlot.width()/len(self.CurrentNetwork.data_input.keys())-5
         cnt = 0
+        sigmax = 1
         for inputsig, sigvalue in self.CurrentNetwork.data_input.iteritems():
             #print "input rectangle %s"%inputsig, sigvalue
+            if (sigvalue > sigmax): 
+                sigmax = sigvalue
+
+            sigvalue = (sigvalue/sigmax)
             self.paintBar(self.inputPlot.x()+5+cnt*barwidth_in,self.inputPlot.y() + self.inputPlot.height(),barwidth_in,(-1)*abs(sigvalue*self.inputPlot.height()))
             cnt = cnt+1
 
         # Output Bars
         # print "Length of Ouptput Signals", len(self.CurrentNetwork.data_output.keys())
         barwidth_out = self.outputPlot.width()/len(self.CurrentNetwork.data_output.keys())-5
-        cnt2 = 0 
+        cnt2 = 0
+        sigmax2 = 1
         for outputsig, outvalue in self.CurrentNetwork.data_output.iteritems():
             #print "output rectangle %s"%outputsig, outvalue
+            if (outvalue > sigmax2): 
+                sigmax2 = outvalue
+            
+            outvalue = (outvalue/sigmax2)
             self.paintBar(self.outputPlot.x()+5+cnt2*barwidth_out,self.outputPlot.y() + self.outputPlot.height(),barwidth_out,(-1)*abs(outvalue*self.outputPlot.height()))
             cnt2 = cnt2+1
+
+        # Middle Bars
+        if len(self.CurrentNetwork.data_middle.keys())>=1: 
+            barwidth_mid = self.middlePlot.width()/len(self.CurrentNetwork.data_middle.keys())-5
+            cnt3 = 0 
+            for midsig, midval in self.CurrentNetwork.data_middle.iteritems():
+                #print "output rectangle %s"%outputsig, outvalue
+                # if (midval > sigmax2): 
+                #     sigmax2 = outvalue
+                # outvalue = (outvalue/sigmax2)
+                self.paintBar(self.middlePlot.x()+5+cnt3*barwidth_out,self.middlePlot.y() + self.middlePlot.height(),barwidth_mid,(-1)*abs(midval*self.middlePlot.height()))
+                cnt3 = cnt3+1
 
 ####################################################################################################################################################
 ####################################################################################################################################################
