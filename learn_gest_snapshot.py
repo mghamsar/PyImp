@@ -380,6 +380,9 @@ class PyImpUI(QWidget):
             sliders[s_index].setRange(0,100)
             sliders[s_index].setParent(self.slidersWindow)
             sliders[s_index].valueChanged.connect(self.getSliderValue)
+            sliders[s_index].setSliderPosition(5)
+            self.CurrentNetwork.data_middle["Slider%s"%s_index] = 5
+
             self.layoutSliders.addWidget(sliders[s_index])
 
         self.slidersWindow.show()
@@ -638,7 +641,7 @@ class PyImpUI(QWidget):
                 # if (midval > sigmax2): 
                 #     sigmax2 = outvalue
                 # outvalue = (outvalue/sigmax2)
-                self.paintBar(self.middlePlot.x()+5+cnt3*barwidth_out,self.middlePlot.y() + self.middlePlot.height(),barwidth_mid,(-1)*abs(midval*self.middlePlot.height()))
+                self.paintBar(self.middlePlot.x()+5+cnt3*barwidth_mid,self.middlePlot.y() + self.middlePlot.height(),barwidth_mid,(-1)*abs(midval))
                 cnt3 = cnt3+1
 
 ####################################################################################################################################################
