@@ -222,20 +222,22 @@ class PyImpUI(QWidget):
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.QUpdate) 
-        self.timer.start(20)
+        self.timer.start(50)
         
     def initUI(self):
 
         QApplication.setStyle(QStyleFactory.create('Cleanlooks'))
 
+        #Load UI created in QT Designer
+        self.loadCustomWidget("PyImpMainWindowSnapShot.ui")
+        self.setAutoFillBackground(1)
+
         widgets = self.findChildren(QWidget)
         #print "WIDGETS", widgets
 
-        #Load UI created in QT Designer
-        self.loadCustomWidget("PyImpMainWindowSnapShot.ui")
-
         # Button Widgets in the Main Interface
         self.loadDataButton = self.findChild(QWidget,"loadDataButton")
+        # self.loadDataButton.setColor("#FFC673")
         self.saveDataButton = self.findChild(QWidget,"saveDataButton")
         self.loadMappingButton = self.findChild(QWidget,"loadMappingButton")
         self.saveMappingButton = self.findChild(QWidget,"saveMappingButton")
@@ -280,6 +282,11 @@ class PyImpUI(QWidget):
         self.middleLayerEnable.toggle()
         self.middleLayerEnable.stateChanged.connect(self.enableSliders)
         self.middleLayerEnable.setCheckState(Qt.Unchecked)
+
+        # paletteButton = QPalette()
+        # paletteButton.setColor(QPalette.Button,"#FFC673")
+        # self.loadDataButton.setPalette(paletteButton)
+
 
         self.show()
 
@@ -447,6 +454,7 @@ class PyImpUI(QWidget):
         self.CurrentNetwork.save_net()
 
     def clearQNetwork(self):
+        # clear the previously calculated weights and start over
         self.CurrentNetwork.clear_network()
 
     def learnQCallback(self):
@@ -575,61 +583,76 @@ class PyImpUI(QWidget):
         self.paintSignals()
         self.qp.end()        
 
-    # Paint a single bar as part of a bar-graph
+    # # Paint a single bar as part of a bar-graph
     def paintBar(self,x,y,barwidth,barheight):
-
-        brush = QBrush(QColor(0,100,160),Qt.SolidPattern)
+        brush = QBrush(QColor("#9D0D02"),Qt.SolidPattern)
         rect = QRect(x,y,barwidth,barheight)
         self.qp.setBrush(brush)
-        self.qp.drawRect((rect.adjusted(0, 0, -1, -1)))
+        self.qp.drawRect(rect)
 
     # This function plots the individual signals coming into implicit mapper from both the input and the output
     def paintSignals(self):
-        #print "Length of Input Signals", len(self.CurrentNetwork.data_input.keys())
+
+        # # Overall Rectangle
+        brush1 = QBrush(QColor("#FFDE99"),Qt.Dense3Pattern)
+        self.qp.setBrush(brush1)
+        self.qp.drawRect(self.inputPlot.x(),self.inputPlot.y(),self.outputPlot.width()*3+20,self.outputPlot.height())
+        # self.qp.drawLine(self.inputPlot.x(),self.inputPlot.y(),self.outputPlot.x()+self.outputPlot.width(),self.outputPlot.y())
+        # self.qp.drawLine(self.inputPlot.x(),self.inputPlot.y()+self.inputPlot.height(),self.outputPlot.x()+self.outputPlot.width(),self.outputPlot.y()+self.outputPlot.height())
+        # self.qp.drawLine(self.inputPlot.x(),self.inputPlot.y(),self.inputPlot.x(),self.inputPlot.y()+self.inputPlot.height())
+        # self.qp.drawLine(self.outputPlot.x()+self.outputPlot.width(),self.outputPlot.y(),self.outputPlot.x()+self.outputPlot.width(),self.outputPlot.y()+self.outputPlot.height())
+
+
 
         # Input Plot Background
-        self.inputRect = QRect(self.inputPlot.x(),self.inputPlot.y(),self.inputPlot.width(), self.inputPlot.height())
-        brush1 = QBrush(QColor(255,200,0),Qt.Dense3Pattern)
+        # self.inputRect = QRect(self.inputPlot.x(),self.inputPlot.y(),self.inputPlot.width(), self.inputPlot.height())
+        brush1 = QBrush(QColor("#FFDE99"),Qt.Dense3Pattern)
         self.qp.setBrush(brush1)
-        self.qp.drawRect((self.inputRect.adjusted(0, 0, -1, -1)))
+        self.qp.drawRect(20,65,300,220)
+        self.qp.drawRect(340,15,490,180)
 
-        # Middle Plot Background
-        self.middleRect = QRect(self.middlePlot.x(),self.middlePlot.y(),self.middlePlot.width(),self.middlePlot.height())
-        brush = QBrush(QColor(255,150,0),Qt.Dense3Pattern)
-        self.qp.setBrush(brush)
-        self.qp.drawRect((self.middleRect.adjusted(0, 0, -1, -1)))
+        # # Middle Plot Background
+        # self.middleRect = QRect(self.middlePlot.x(),self.middlePlot.y(),self.middlePlot.width(),self.middlePlot.height())
+        # brush = QBrush(QColor("#FFDE99"),Qt.Dense3Pattern)
+        # self.qp.setBrush(brush)
+        # self.qp.drawRect(self.middleRect)
 
-        # Output Plot Background
-        self.outputRect = QRect(self.outputPlot.x(),self.outputPlot.y(),self.outputPlot.width(),self.outputPlot.height())
-        brush2 = QBrush(QColor(255,180,160),Qt.Dense3Pattern)
-        self.qp.setBrush(brush2)
-        self.qp.drawRect((self.outputRect.adjusted(0, 0, -1, -1)))
-        
-        # Input Bars 
-        barwidth_in = self.inputPlot.width()/len(self.CurrentNetwork.data_input.keys())-5
+        # # Output Plot Background
+        # self.outputRect = QRect(self.outputPlot.x(),self.outputPlot.y(),self.outputPlot.width(),self.outputPlot.height())
+        # brush2 = QBrush(QColor("#FFDE99"),Qt.Dense3Pattern)
+        # self.qp.setBrush(brush2)
+        # self.qp.drawRect(self.outputRect)
+
+        # Input Bars
+        if len(self.CurrentNetwork.data_input.keys())>1:
+            barwidth_in = float(self.inputPlot.width())/len(self.CurrentNetwork.data_input.keys())-5
+        else: 
+            barwidth_in = 1
         cnt = 0
-        sigmax = 1
         for inputsig, sigvalue in self.CurrentNetwork.data_input.iteritems():
             #print "input rectangle %s"%inputsig, sigvalue
+            sigmax = 1
             if (sigvalue > sigmax): 
                 sigmax = sigvalue
 
             sigvalue = (sigvalue/sigmax)
-            self.paintBar(self.inputPlot.x()+5+cnt*barwidth_in,self.inputPlot.y() + self.inputPlot.height(),barwidth_in,(-1)*abs(sigvalue*self.inputPlot.height()))
+            self.paintBar(self.inputPlot.x()+10+cnt*barwidth_in,self.inputPlot.y() + self.inputPlot.height(),barwidth_in,(-1)*abs(sigvalue*self.inputPlot.height()))
             cnt = cnt+1
 
         # Output Bars
-        # print "Length of Ouptput Signals", len(self.CurrentNetwork.data_output.keys())
-        barwidth_out = self.outputPlot.width()/len(self.CurrentNetwork.data_output.keys())-5
+        if len(self.CurrentNetwork.data_output.keys())>1:
+            barwidth_out = self.outputPlot.width()/len(self.CurrentNetwork.data_output.keys())-5
+        else: 
+            barwidth_out = 1
         cnt2 = 0
-        sigmax2 = 1
         for outputsig, outvalue in self.CurrentNetwork.data_output.iteritems():
             #print "output rectangle %s"%outputsig, outvalue
+            sigmax2 = 1
             if (outvalue > sigmax2): 
                 sigmax2 = outvalue
             
             outvalue = (outvalue/sigmax2)
-            self.paintBar(self.outputPlot.x()+5+cnt2*barwidth_out,self.outputPlot.y() + self.outputPlot.height(),barwidth_out,(-1)*abs(outvalue*self.outputPlot.height()))
+            self.paintBar(self.outputPlot.x()+10+cnt2*barwidth_out,self.outputPlot.y() + self.outputPlot.height(),barwidth_out,(-1)*abs(outvalue*self.outputPlot.height()))
             cnt2 = cnt2+1
 
         # Middle Bars
@@ -641,7 +664,7 @@ class PyImpUI(QWidget):
                 # if (midval > sigmax2): 
                 #     sigmax2 = outvalue
                 # outvalue = (outvalue/sigmax2)
-                self.paintBar(self.middlePlot.x()+5+cnt3*barwidth_mid,self.middlePlot.y() + self.middlePlot.height(),barwidth_mid,(-1)*abs(midval))
+                self.paintBar(self.middlePlot.x()+10+cnt3*barwidth_mid,self.middlePlot.y() + self.middlePlot.height(),barwidth_mid,(-1)*abs(midval))
                 cnt3 = cnt3+1
 
 ####################################################################################################################################################
