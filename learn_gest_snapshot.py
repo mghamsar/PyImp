@@ -157,7 +157,7 @@ class PyImpNetwork():
 
     def learn_callback(self):
 
-        self.update_output()
+        self.update()
 
         # Save data to a temporary database in case they need to be edited before adding to the Supervised Dataset
         self.snapshot_count = self.snapshot_count+1
@@ -182,11 +182,9 @@ class PyImpNetwork():
     def compute_callback(self):
 
         activated_out = self.net.activate(tuple(self.data_input.values()))
-
         for out_index in range(self.num_outputs):
             self.data_output[out_index] = activated_out[out_index]
             self.l_outputs[out_index].update(self.data_output[out_index])
-            # TO DO: Update Outputs Plot dynamically with new values
 
     def train_callback(self):
         self.trainer = BackpropTrainer(self.net, learningrate=0.01, lrdecay=1, momentum=0.0, verbose=True)
@@ -202,10 +200,17 @@ class PyImpNetwork():
         print ("\n")
         print 'Total epochs:', self.trainer.totalepochs
 
-    def update_output(self):
-        # Get Value from the output by sending a query request
-        for index in range(self.num_outputs):
-            self.l_outputs[index].query_remote()
+    def update(self):
+        
+        # Compute the output from the input values
+        if self.compute == 1: 
+            print "computing callback within ANN"
+            self.compute_callback()
+
+        else: 
+            # Update the Output: Get Value from the output by sending a query request
+            for index in range(self.num_outputs):
+                self.l_outputs[index].query_remote()
 
     def update_ds(self):
         for key in self.temp_ds.iterkeys(): 
@@ -244,9 +249,11 @@ class PyImpUI(QWidget):
 
         self.getDataButton = self.findChild(QWidget,"getDataButton")
         self.trainMappingButton = self.findChild(QWidget,"trainMappingButton")
-        self.processOutputButton = self.findChild(QWidget,"processOutputButton")
         self.resetClassifierButton = self.findChild(QWidget,"resetClassifierButton")
         self.clearDataButton = self.findChild(QWidget,"clearDataButton")
+
+        self.processOutputButton = self.findChild(QWidget,"processOutputButton")
+        self.processOutputButton.setCheckable(True)
 
         self.middleLayerEnable = self.findChild(QWidget,"middleLayerEnable")
 
@@ -267,6 +274,8 @@ class PyImpUI(QWidget):
         self.midLabel = self.findChild(QLabel,"midlabel")
         self.midLabel.hide()
 
+        self.processResultsText = self.findChild(QLabel, "processResultsText")
+        
         # Activate the Buttons in the Main Interface
         self.loadDataButton.clicked.connect(self.loadQDataset)
         self.saveDataButton.clicked.connect(self.saveQDataset)
@@ -276,23 +285,18 @@ class PyImpUI(QWidget):
         self.trainMappingButton.clicked.connect(self.trainQCallback)
         self.resetClassifierButton.clicked.connect(self.clearQNetwork)
         self.clearDataButton.clicked.connect(self.clearQDataSet)
-        self.processOutputButton.clicked.connect(self.computeQCallback)
+        self.processOutputButton.clicked[bool].connect(self.computeQCallback)
         self.editSnapshots.clicked.connect(self.openEditSnapshotsWindow)
 
         self.middleLayerEnable.toggle()
         self.middleLayerEnable.stateChanged.connect(self.enableSliders)
         self.middleLayerEnable.setCheckState(Qt.Unchecked)
 
-        # paletteButton = QPalette()
-        # paletteButton.setColor(QPalette.Button,"#FFC673")
-        # self.loadDataButton.setPalette(paletteButton)
-
-
         self.show()
 
     def QUpdate(self):
         self.CurrentNetwork.learnMapperDevice.poll(0)
-        self.CurrentNetwork.update_output()
+        self.CurrentNetwork.update()
         self.update()
 
     def loadCustomWidget(self,UIfile):
@@ -474,17 +478,19 @@ class PyImpUI(QWidget):
     def trainQCallback(self):
         self.CurrentNetwork.train_callback()
 
-    def computeQCallback(self):
-        print "Processing Output Now"
-        self.CurrentNetwork.compute_callback()
+    def computeQCallback(self,pressed):
 
-        if self.CurrentNetwork.compute==1:
-            self.processOutputButton.setDown(1)
-            self.processOutputButton.setText("Computing Results ON")
+        if pressed: #self.processOutputButton.isChecked() == 1:
+            print "Processing Output Now"
+            self.processResultsText.setText("Computing Results is ON")
+            self.CurrentNetwork.compute = 1
+            #self.CurrentNetwork.compute_callback()
 
-        elif self.CurrentNetwork.compute ==0:
-            self.processOutputButton.setDown(0)
-            self.processOutputButton.setText("Process Results")
+        else:
+            print "Process output stopped"
+            self.processResultsText.setText("Click to Compute Results")
+            self.CurrentNetwork.compute = 0
+
 
     def openEditSnapshotsWindow(self):
 
@@ -609,7 +615,7 @@ class PyImpUI(QWidget):
         brush1 = QBrush(QColor("#FFDE99"),Qt.Dense3Pattern)
         self.qp.setBrush(brush1)
         self.qp.drawRect(20,65,300,220)
-        self.qp.drawRect(340,15,490,180)
+        self.qp.drawRect(330,15,490,180)
 
         # # Middle Plot Background
         # self.middleRect = QRect(self.middlePlot.x(),self.middlePlot.y(),self.middlePlot.width(),self.middlePlot.height())
