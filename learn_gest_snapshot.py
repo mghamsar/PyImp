@@ -143,6 +143,7 @@ class PyImpNetwork():
         self.net = networkreader.NetworkReader.readFrom(open_filename)
 
     def clear_dataset(self):
+
         if self.temp_ds != 0:
             self.temp_ds.clear()
             self.snapshot_count = 0
@@ -157,18 +158,16 @@ class PyImpNetwork():
 
     def learn_callback(self):
 
-        self.update()
-
         # Save data to a temporary database in case they need to be edited before adding to the Supervised Dataset
         self.snapshot_count = self.snapshot_count+1
         self.temp_ds[self.snapshot_count] = {}
         self.temp_ds[self.snapshot_count]["input"] = tuple(self.data_input.values())
         self.temp_ds[self.snapshot_count]["output"] = tuple(self.data_output.values())
+        self.update_ds()
 
         print "Values before going to temp_ds", self.data_input.values(), "   ", self.data_output.values()
         print self.snapshot_count, "(Input, Output)", self.temp_ds[self.snapshot_count]
 
-        self.update_ds()
 
     def remove_tempds(self,objectNum):
 
@@ -204,7 +203,7 @@ class PyImpNetwork():
         
         # Compute the output from the input values
         if self.compute == 1: 
-            print "computing callback within ANN"
+            #print "computing callback within ANN"
             self.compute_callback()
 
         else: 
@@ -213,7 +212,7 @@ class PyImpNetwork():
                 self.l_outputs[index].query_remote()
 
     def update_ds(self):
-        for key in self.temp_ds.iterkeys(): 
+        for key in sorted(self.temp_ds.iterkeys()): 
             self.ds.addSample(self.temp_ds[key]["input"],self.temp_ds[key]["output"])
 
 ####################################################################################################################################
@@ -500,6 +499,13 @@ class PyImpUI(QWidget):
         self.addtoDsButton.setGeometry(320,350,170,40)
         self.addtoDsButton.setParent(self.snapshotWindow)
         self.addtoDsButton.clicked.connect(self.updateQDataSet)
+
+        self.dsLabel = QLabel("Number of Single Sets in Database:")
+        self.dsLabel.setGeometry(30,350,270,40)
+        self.dsLabel.setParent(self.snapshotWindow)
+        self.dsNumber = QLabel("0")
+        self.dsNumber.setGeometry(270,350,100,40)
+        self.dsNumber.setParent(self.snapshotWindow)
         
         self.snapshotGrid = QGridLayout()
         self.snapshotGrid.setHorizontalSpacing(10)
@@ -555,6 +561,8 @@ class PyImpUI(QWidget):
     
     def updateQDataSet(self):
         self.CurrentNetwork.update_ds()
+        #setText(str(cur_count+1))
+        self.dsNumber.setText(str(len(self.CurrentNetwork.temp_ds.keys())))
 
     def removeTempDataSet(self):
         sender = self.sender()
@@ -600,8 +608,8 @@ class PyImpUI(QWidget):
     def paintSignals(self):
 
         # # Overall Rectangle
-        brush1 = QBrush(QColor("#FFDE99"),Qt.Dense3Pattern)
-        self.qp.setBrush(brush1)
+        #brush1 = QBrush(QColor("#FFDE99"),Qt.Dense3Pattern)
+        #self.qp.setBrush(brush1)
         self.qp.drawRect(self.inputPlot.x(),self.inputPlot.y(),self.outputPlot.width()*3+20,self.outputPlot.height())
         # self.qp.drawLine(self.inputPlot.x(),self.inputPlot.y(),self.outputPlot.x()+self.outputPlot.width(),self.outputPlot.y())
         # self.qp.drawLine(self.inputPlot.x(),self.inputPlot.y()+self.inputPlot.height(),self.outputPlot.x()+self.outputPlot.width(),self.outputPlot.y()+self.outputPlot.height())
@@ -612,10 +620,10 @@ class PyImpUI(QWidget):
 
         # Input Plot Background
         # self.inputRect = QRect(self.inputPlot.x(),self.inputPlot.y(),self.inputPlot.width(), self.inputPlot.height())
-        brush1 = QBrush(QColor("#FFDE99"),Qt.Dense3Pattern)
-        self.qp.setBrush(brush1)
-        self.qp.drawRect(20,65,300,220)
-        self.qp.drawRect(330,15,490,180)
+        #brush1 = QBrush(QColor("#FFDE99"),Qt.Dense3Pattern)
+        #self.qp.setBrush(brush1)
+        #self.qp.drawRect(20,65,300,220)
+        #self.qp.drawRect(330,15,490,180)
 
         # # Middle Plot Background
         # self.middleRect = QRect(self.middlePlot.x(),self.middlePlot.y(),self.middlePlot.width(),self.middlePlot.height())
