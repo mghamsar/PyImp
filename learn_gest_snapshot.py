@@ -175,8 +175,12 @@ class PyImpNetwork():
             print "Found DS to delete", objectNum
             del self.temp_ds[objectNum]
 
+            if self.snapshot_count > (-1):
+                self.snapshot_count = self.snapshot_count - 1
+
         else: 
             print "Error, This database entry does not exist"
+
 
     def compute_callback(self):
 
@@ -203,7 +207,6 @@ class PyImpNetwork():
         
         # Compute the output from the input values
         if self.compute == 1: 
-            #print "computing callback within ANN"
             self.compute_callback()
 
         else: 
@@ -212,6 +215,9 @@ class PyImpNetwork():
                 self.l_outputs[index].query_remote()
 
     def update_ds(self):
+        if self.ds != 0:
+            self.ds.clear()
+
         for key in sorted(self.temp_ds.iterkeys()): 
             self.ds.addSample(self.temp_ds[key]["input"],self.temp_ds[key]["output"])
 
@@ -226,7 +232,11 @@ class PyImpUI(QWidget):
         # Maintain a list of created widgets for the database remove buttons and the corresponding label
         # To appear in the edit snapshots window
         self.button_list = []
-        self.label_list = []
+
+        #Create a list of Grid Positions for the Edit Snapshots Window
+        self.pos_list = []
+
+        self.dsNumber = QLabel()
 
         self.initUI()
 
@@ -471,20 +481,24 @@ class PyImpUI(QWidget):
     def learnQCallback(self):
 
         self.CurrentNetwork.learn_callback()
-        cur_count = len(self.CurrentNetwork.temp_ds.keys())
-        self.numberOfSnapshots.setText(str(len(self.CurrentNetwork.temp_ds.keys())))
-        self.dsNumber.setText(str(len(self.CurrentNetwork.temp_ds.keys())))
+        
+        self.numberOfSnapshots.setText(str(self.CurrentNetwork.snapshot_count))
+        self.dsNumber.setText(str(self.CurrentNetwork.snapshot_count))
 
         # Create the buttons in the edit snapshots screen 
-        s_button = QPushButton("Remove Snapshot %s"%cur_count)
+        s_button = QPushButton("Remove Snapshot %s"%self.CurrentNetwork.snapshot_count)
         s_button.resize(140,20)
-        s_button.setObjectName("Dataset%d"%cur_count)
-        s_button.setStyleSheet("QWidget { background-color:#DAFDE0;}")
+        s_button.setObjectName("Dataset%d"%self.CurrentNetwork.snapshot_count)
+        s_button.setStyleSheet("QWidget {background-color:#DAFDE0;}")
+        s_button.setParent(self.snapshotWindow)
 
-        #These lists contain the actual QWidgets
+        #This list contains the actual QWidget QPushButtons
         print "Button Added, total length", len(self.button_list)
         self.button_list.append(s_button)
-        # self.label_list.append(s_label)
+
+        # Update the Grid positions for the list of buttons
+        self.pos_list.append((self.CurrentNetwork.snapshot_count/3,self.CurrentNetwork.snapshot_count%3))
+        print self.pos_list
 
         if self.CurrentNetwork.learning == 1:
             self.getDataButton.setDown(1)
@@ -522,30 +536,21 @@ class PyImpUI(QWidget):
         self.dsLabel = QLabel("Number of Single Sets in Database:")
         self.dsLabel.setGeometry(30,350,270,40)
         self.dsLabel.setParent(self.snapshotWindow)
-        self.dsNumber = QLabel()
+        
         self.dsNumber.setGeometry(270,350,100,40)
-        self.dsNumber.setText(str(len(self.CurrentNetwork.temp_ds.keys())))
+        self.dsNumber.setText(str(self.CurrentNetwork.snapshot_count))
         self.dsNumber.setParent(self.snapshotWindow)
         
         self.snapshotGrid = QGridLayout()
         self.snapshotGrid.setHorizontalSpacing(10)
         self.snapshotGrid.setVerticalSpacing(10)
 
-        #List of Grid Positions
-        pos_list = []
-        
-        for index, pos in enumerate(self.button_list):
-            print index
-            pos_list.append((index/3,index%3))
-        
-        print pos_list
-
         #Display labels on Grid
         j = 0
         for button in self.button_list:
             button.setParent(self.snapshotWindow)
-            self.snapshotGrid.addWidget(button,pos_list[j][0],pos_list[j][1],Qt.AlignCenter)
-            button.move((pos_list[j][1])*(button.width()+5)+10,(pos_list[j][0])*(button.height()+10)+10)
+            self.snapshotGrid.addWidget(button,self.pos_list[j][0],self.pos_list[j][1],Qt.AlignCenter)
+            button.move((self.pos_list[j][1])*(button.width()+5)+10,(self.pos_list[j][0])*(button.height()+10)+10)
             button.clicked.connect(self.removeTempDataSet)
             j = j+1
         
@@ -556,7 +561,7 @@ class PyImpUI(QWidget):
     
     def updateQDataSet(self):
         self.CurrentNetwork.update_ds()
-        self.dsNumber.setText(str(len(self.CurrentNetwork.temp_ds.keys())))
+        self.dsNumber.setText(str(self.CurrentNetwork.snapshot_count))
 
     def removeTempDataSet(self):
 
@@ -575,8 +580,8 @@ class PyImpUI(QWidget):
                 print "Found button to remove"
                 self.button_list.remove(button)
 
-        self.dsNumber.setText(str(len(self.CurrentNetwork.temp_ds.keys())))
-        self.numberOfSnapshots.setText(str(len(self.CurrentNetwork.temp_ds.keys())))
+        self.dsNumber.setText(str(self.CurrentNetwork.snapshot_count))
+        self.numberOfSnapshots.setText(str(self.CurrentNetwork.snapshot_count))
         self.snapshotWindow.update()
 
     ############################################## Graph Drawing Methods Here #####################################################
