@@ -222,6 +222,12 @@ class PyImpUI(QWidget):
     def __init__(self):
         super(PyImpUI, self).__init__()
         self.CurrentNetwork = PyImpNetwork()
+
+        # Maintain a list of created widgets for the database remove buttons and the corresponding label
+        # To appear in the edit snapshots window
+        self.button_list = []
+        self.label_list = []
+
         self.initUI()
 
         self.timer = QTimer(self)
@@ -290,6 +296,8 @@ class PyImpUI(QWidget):
         self.middleLayerEnable.toggle()
         self.middleLayerEnable.stateChanged.connect(self.enableSliders)
         self.middleLayerEnable.setCheckState(Qt.Unchecked)
+        
+        self.snapshotWindow = QMainWindow()
 
         self.show()
 
@@ -431,7 +439,7 @@ class PyImpUI(QWidget):
     
     def clearQDataSet(self):
         self.CurrentNetwork.clear_dataset()
-        self.numberOfSnapshots.setText(str(self.CurrentNetwork.snapshot_count))
+        self.numberOfSnapshots.setText(str(len(self.CurrentNetwork.temp_ds.keys())))
 
     def loadQNetwork(self):
 
@@ -463,8 +471,20 @@ class PyImpUI(QWidget):
     def learnQCallback(self):
 
         self.CurrentNetwork.learn_callback()
-        cur_count = int(self.numberOfSnapshots.text())
-        self.numberOfSnapshots.setText(str(cur_count+1))
+        cur_count = len(self.CurrentNetwork.temp_ds.keys())
+        self.numberOfSnapshots.setText(str(len(self.CurrentNetwork.temp_ds.keys())))
+        self.dsNumber.setText(str(len(self.CurrentNetwork.temp_ds.keys())))
+
+        # Create the buttons in the edit snapshots screen 
+        s_button = QPushButton("Remove Snapshot %s"%cur_count)
+        s_button.resize(140,20)
+        s_button.setObjectName("Dataset%d"%cur_count)
+        s_button.setStyleSheet("QWidget { background-color:#DAFDE0;}")
+
+        #These lists contain the actual QWidgets
+        print "Button Added, total length", len(self.button_list)
+        self.button_list.append(s_button)
+        # self.label_list.append(s_label)
 
         if self.CurrentNetwork.learning == 1:
             self.getDataButton.setDown(1)
@@ -493,78 +513,53 @@ class PyImpUI(QWidget):
 
     def openEditSnapshotsWindow(self):
 
-        self.snapshotWindow = QMainWindow()
-
         self.addtoDsButton = QPushButton("Update Dataset")
         self.addtoDsButton.setGeometry(320,350,170,40)
+        self.addtoDsButton.setStyleSheet("QWidget { background-color:#3AD76F;}")
         self.addtoDsButton.setParent(self.snapshotWindow)
         self.addtoDsButton.clicked.connect(self.updateQDataSet)
 
         self.dsLabel = QLabel("Number of Single Sets in Database:")
         self.dsLabel.setGeometry(30,350,270,40)
         self.dsLabel.setParent(self.snapshotWindow)
-        self.dsNumber = QLabel("0")
+        self.dsNumber = QLabel()
         self.dsNumber.setGeometry(270,350,100,40)
+        self.dsNumber.setText(str(len(self.CurrentNetwork.temp_ds.keys())))
         self.dsNumber.setParent(self.snapshotWindow)
         
         self.snapshotGrid = QGridLayout()
         self.snapshotGrid.setHorizontalSpacing(10)
         self.snapshotGrid.setVerticalSpacing(10)
 
-        # Maintain a list of created widgets
-        button_list = []
-        label_list = []
-
         #List of Grid Positions
-        pos = []
-
-        for s, val in self.CurrentNetwork.temp_ds.iteritems():
-            s_button = QPushButton("Remove")
-            s_label = QLabel("Snapshot %s"%s)
-            s_button.resize(80,20)
-            s_label.resize(80,30)
-            s_button.setObjectName("Dataset%d"%s)
-            s_label.setObjectName("LabelDataset%d"%s)
-            s_label.setParent(self.snapshotWindow)
-            s_button.setParent(self.snapshotWindow)
-
-            #These lists contain the actual QWidgets
-            button_list.append(s_button)
-            label_list.append(s_label)
-            
-            #Grid Positions
-            p = s-1
-            pos.append((p/5,p%5))
+        pos_list = []
+        
+        for index, pos in enumerate(self.button_list):
+            print index
+            pos_list.append((index/3,index%3))
+        
+        print pos_list
 
         #Display labels on Grid
         j = 0
-        for label in label_list:
-            label.setParent(self.snapshotWindow)
-            label.setAlignment(Qt.AlignCenter)
-            self.snapshotGrid.addWidget(label,pos[j][0],pos[j][1],Qt.AlignCenter)
-            label.move((pos[j][1])*(label.width()+5)+10,(pos[j][0])*(label.height()+10)+10)
+        for button in self.button_list:
+            button.setParent(self.snapshotWindow)
+            self.snapshotGrid.addWidget(button,pos_list[j][0],pos_list[j][1],Qt.AlignCenter)
+            button.move((pos_list[j][1])*(button.width()+5)+10,(pos_list[j][0])*(button.height()+10)+10)
+            button.clicked.connect(self.removeTempDataSet)
             j = j+1
         
-        #Display buttons on Grid
-        k = 0
-        for button in button_list:
-            button.setParent(self.snapshotWindow)
-            self.snapshotGrid.addWidget(button,pos[k][0]+1,pos[k][1],Qt.AlignCenter)
-            button.move((pos[k][1])*(button.width()+5)+10,(pos[k][0])*(button.height()+20)+35)
-            button.clicked.connect(self.removeTempDataSet)
-            k = k+1
-
         self.snapshotWindow.setLayout(self.snapshotGrid)
-        self.snapshotWindow.setGeometry(300,200,500,400)
+        self.snapshotWindow.setGeometry(300,200,550,400)
         self.snapshotWindow.setWindowTitle("Edit Existing Snapshots")
         self.snapshotWindow.show()
     
     def updateQDataSet(self):
         self.CurrentNetwork.update_ds()
-        #setText(str(cur_count+1))
         self.dsNumber.setText(str(len(self.CurrentNetwork.temp_ds.keys())))
 
     def removeTempDataSet(self):
+
         sender = self.sender()
         sender_name = sender.objectName()
         sender_id = sender_name.split("Dataset")
@@ -574,19 +569,15 @@ class PyImpUI(QWidget):
         self.CurrentNetwork.remove_tempds(sender_id)
         print "Number of Items", self.snapshotGrid.count(), range(1,self.snapshotGrid.count()+1)
 
-        for i in range(1,self.snapshotGrid.count()+1):
+        sender.setParent(None)
+        for button in sorted(self.button_list):
+            if button.objectName() == sender.objectName():
+                print "Found button to remove"
+                self.button_list.remove(button)
 
-            b = self.snapshotGrid.takeAt(i)
-            b_widget = b.widget()
-            print b_widget
-
-            if b_widget.objectName() == str(sender_id):
-                b.widget().setParent(None)
-                b.widget().deleteLater()
-
+        self.dsNumber.setText(str(len(self.CurrentNetwork.temp_ds.keys())))
+        self.numberOfSnapshots.setText(str(len(self.CurrentNetwork.temp_ds.keys())))
         self.snapshotWindow.update()
-
-        # b_label = self.snapshotWindow.findChild(QLabel,"LabelDataset%d"%sender_id)
 
     ############################################## Graph Drawing Methods Here #####################################################
 
@@ -643,7 +634,7 @@ class PyImpUI(QWidget):
         else: 
             barwidth_in = 1
         cnt = 0
-        for inputsig, sigvalue in self.CurrentNetwork.data_input.iteritems():
+        for inputsig, sigvalue in sorted(self.CurrentNetwork.data_input.iteritems()):
             #print "input rectangle %s"%inputsig, sigvalue
             sigmax = 1
             if (sigvalue > sigmax): 
@@ -659,7 +650,7 @@ class PyImpUI(QWidget):
         else: 
             barwidth_out = 1
         cnt2 = 0
-        for outputsig, outvalue in self.CurrentNetwork.data_output.iteritems():
+        for outputsig, outvalue in sorted(self.CurrentNetwork.data_output.iteritems()):
             #print "output rectangle %s"%outputsig, outvalue
             sigmax2 = 1
             if (outvalue > sigmax2): 
@@ -673,7 +664,7 @@ class PyImpUI(QWidget):
         if len(self.CurrentNetwork.data_middle.keys())>=1: 
             barwidth_mid = self.middlePlot.width()/len(self.CurrentNetwork.data_middle.keys())-5
             cnt3 = 0 
-            for midsig, midval in self.CurrentNetwork.data_middle.iteritems():
+            for midsig, midval in sorted(self.CurrentNetwork.data_middle.iteritems()):
                 #print "output rectangle %s"%outputsig, outvalue
                 # if (midval > sigmax2): 
                 #     sigmax2 = outvalue
