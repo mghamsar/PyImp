@@ -36,6 +36,7 @@ class PyImpNetwork():
         #For the Artificial Neural Network
         self.data_input = {}
         self.data_output = {}
+        self.data_middle = {}
 
         # store a list of the signals obtained from the device
         self.input_names = []
@@ -49,6 +50,10 @@ class PyImpNetwork():
 
     # mapper signal handler (updates self.data_input[sig_indx]=new_float_value)
     def h(self,sig, f):
+
+        if f == None:
+            return
+
         try:
             if '/in' in sig.name:
                 s_indx = str.split(sig.name,"/in")
@@ -60,11 +65,12 @@ class PyImpNetwork():
             elif '/out' in sig.name:
                     s_indx = str.split(sig.name,"/out")
                     self.data_output[int(s_indx[1])] = float(f)
-                    print "Output Value from data_output", self.data_output[int(s_indx[1])]
-
+                    #print "Output Value from data_output", self.data_output[int(s_indx[1])]
+            
+            #print "Output Value from data_output", self.data_output.values()
             #print self.input_names 
-        except:
-           print "Exception, Handler not working"
+        except Exception, e:
+           print "Exception, Handler not working:", e
 
     def createANN(self,n_inputs,n_hidden,n_outputs):
         #create ANN
@@ -137,6 +143,7 @@ class PyImpNetwork():
         self.net = networkreader.NetworkReader.readFrom(open_filename)
 
     def clear_dataset(self):
+
         if self.temp_ds != 0:
             self.temp_ds.clear()
             self.snapshot_count = 0
@@ -151,19 +158,16 @@ class PyImpNetwork():
 
     def learn_callback(self):
 
-        for index in range(self.num_outputs):
-            self.data_output[index] = self.l_outputs[index].query_remote()
-            #print self.data_output[index]
-
         # Save data to a temporary database in case they need to be edited before adding to the Supervised Dataset
         self.snapshot_count = self.snapshot_count+1
         self.temp_ds[self.snapshot_count] = {}
         self.temp_ds[self.snapshot_count]["input"] = tuple(self.data_input.values())
         self.temp_ds[self.snapshot_count]["output"] = tuple(self.data_output.values())
+        self.update_ds()
 
+        print "Values before going to temp_ds", self.data_input.values(), "   ", self.data_output.values()
         print self.snapshot_count, "(Input, Output)", self.temp_ds[self.snapshot_count]
 
-        self.update_ds()
 
     def remove_tempds(self,objectNum):
 
@@ -171,17 +175,19 @@ class PyImpNetwork():
             print "Found DS to delete", objectNum
             del self.temp_ds[objectNum]
 
+            if self.snapshot_count > (-1):
+                self.snapshot_count = self.snapshot_count - 1
+
         else: 
             print "Error, This database entry does not exist"
+
 
     def compute_callback(self):
 
         activated_out = self.net.activate(tuple(self.data_input.values()))
-
         for out_index in range(self.num_outputs):
             self.data_output[out_index] = activated_out[out_index]
             self.l_outputs[out_index].update(self.data_output[out_index])
-            # TO DO: Update Outputs Plot dynamically with new values
 
     def train_callback(self):
         self.trainer = BackpropTrainer(self.net, learningrate=0.01, lrdecay=1, momentum=0.0, verbose=True)
@@ -197,8 +203,22 @@ class PyImpNetwork():
         print ("\n")
         print 'Total epochs:', self.trainer.totalepochs
 
+    def update(self):
+        
+        # Compute the output from the input values
+        if self.compute == 1: 
+            self.compute_callback()
+
+        else: 
+            # Update the Output: Get Value from the output by sending a query request
+            for index in range(self.num_outputs):
+                self.l_outputs[index].query_remote()
+
     def update_ds(self):
-        for key in self.temp_ds.iterkeys(): 
+        if self.ds != 0:
+            self.ds.clear()
+
+        for key in sorted(self.temp_ds.iterkeys()): 
             self.ds.addSample(self.temp_ds[key]["input"],self.temp_ds[key]["output"])
 
 ####################################################################################################################################
@@ -208,33 +228,47 @@ class PyImpUI(QWidget):
     def __init__(self):
         super(PyImpUI, self).__init__()
         self.CurrentNetwork = PyImpNetwork()
+
+        # Maintain a list of created widgets for the database remove buttons and the corresponding label
+        # To appear in the edit snapshots window
+        self.button_list = []
+
+        #Create a list of Grid Positions for the Edit Snapshots Window
+        self.pos_list = []
+
+        self.dsNumber = QLabel()
+
         self.initUI()
 
-        timer = QTimer(self)
-        self.connect(timer, SIGNAL("timeout()"), self.QUpdate)
-        timer.start(50)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.QUpdate) 
+        self.timer.start(50)
         
     def initUI(self):
 
         QApplication.setStyle(QStyleFactory.create('Cleanlooks'))
 
+        #Load UI created in QT Designer
+        self.loadCustomWidget("PyImpMainWindowSnapShot.ui")
+        self.setAutoFillBackground(1)
+
         widgets = self.findChildren(QWidget)
         #print "WIDGETS", widgets
 
-        #Load UI created in QT Designer
-        self.loadCustomWidget("PyImpMainWindowSnapShot.ui")
-
         # Button Widgets in the Main Interface
         self.loadDataButton = self.findChild(QWidget,"loadDataButton")
+        # self.loadDataButton.setColor("#FFC673")
         self.saveDataButton = self.findChild(QWidget,"saveDataButton")
         self.loadMappingButton = self.findChild(QWidget,"loadMappingButton")
         self.saveMappingButton = self.findChild(QWidget,"saveMappingButton")
 
         self.getDataButton = self.findChild(QWidget,"getDataButton")
         self.trainMappingButton = self.findChild(QWidget,"trainMappingButton")
-        self.processOutputButton = self.findChild(QWidget,"processOutputButton")
         self.resetClassifierButton = self.findChild(QWidget,"resetClassifierButton")
         self.clearDataButton = self.findChild(QWidget,"clearDataButton")
+
+        self.processOutputButton = self.findChild(QWidget,"processOutputButton")
+        self.processOutputButton.setCheckable(True)
 
         self.middleLayerEnable = self.findChild(QWidget,"middleLayerEnable")
 
@@ -250,8 +284,13 @@ class PyImpUI(QWidget):
         self.inputPlot = self.findChild(QWidget,"inputSignals")
         self.outputPlot = self.findChild(QWidget,"outputSignals")
         self.middlePlot = self.findChild(QWidget,"middleSignals")
+        self.middlePlot.hide()
 
+        self.midLabel = self.findChild(QLabel,"midlabel")
+        self.midLabel.hide()
 
+        self.processResultsText = self.findChild(QLabel, "processResultsText")
+        
         # Activate the Buttons in the Main Interface
         self.loadDataButton.clicked.connect(self.loadQDataset)
         self.saveDataButton.clicked.connect(self.saveQDataset)
@@ -261,17 +300,21 @@ class PyImpUI(QWidget):
         self.trainMappingButton.clicked.connect(self.trainQCallback)
         self.resetClassifierButton.clicked.connect(self.clearQNetwork)
         self.clearDataButton.clicked.connect(self.clearQDataSet)
-        self.processOutputButton.clicked.connect(self.computeQCallback)
+        self.processOutputButton.clicked[bool].connect(self.computeQCallback)
         self.editSnapshots.clicked.connect(self.openEditSnapshotsWindow)
 
         self.middleLayerEnable.toggle()
         self.middleLayerEnable.stateChanged.connect(self.enableSliders)
         self.middleLayerEnable.setCheckState(Qt.Unchecked)
+        
+        self.snapshotWindow = QMainWindow()
 
         self.show()
 
     def QUpdate(self):
-        self.CurrentNetwork.learnMapperDevice.poll(1)       
+        self.CurrentNetwork.learnMapperDevice.poll(0)
+        self.CurrentNetwork.update()
+        self.update()
 
     def loadCustomWidget(self,UIfile):
         loader = QUiLoader()
@@ -286,11 +329,15 @@ class PyImpUI(QWidget):
         if state == Qt.Checked:
             #print "Middle Sliders Now Enabled"
             self.setSlidersButton.show()
+            self.midLabel.show()
+            self.middlePlot.show()
             self.setSlidersButton.clicked.connect(self.openEditSlidersWindow)
 
         else:
             #print "Middle Sliders Now Disabled"
             self.setSlidersButton.hide() 
+            self.middlePlot.hide()
+            self.midLabel.hide()
 
     def openEditSlidersWindow(self):
 
@@ -360,10 +407,21 @@ class PyImpUI(QWidget):
             sliders[s_index].setOrientation(Qt.Horizontal)
             sliders[s_index].setRange(0,100)
             sliders[s_index].setParent(self.slidersWindow)
+            sliders[s_index].valueChanged.connect(self.getSliderValue)
+            sliders[s_index].setSliderPosition(5)
+            self.CurrentNetwork.data_middle["Slider%s"%s_index] = 5
+
             self.layoutSliders.addWidget(sliders[s_index])
 
         self.slidersWindow.show()
         self.setButton.setDisabled(1)
+    
+    def getSliderValue(self):
+        sender = self.sender()
+        sender_name = sender.objectName()
+
+        self.CurrentNetwork.data_middle[sender_name] = sender.value()
+        #print "Middle Slider Values", self.CurrentNetwork.data_middle.values()
 
     def loadQDataset(self):
 
@@ -391,7 +449,7 @@ class PyImpUI(QWidget):
     
     def clearQDataSet(self):
         self.CurrentNetwork.clear_dataset()
-        self.numberOfSnapshots.setText(str(self.CurrentNetwork.snapshot_count))
+        self.numberOfSnapshots.setText(str(len(self.CurrentNetwork.temp_ds.keys())))
 
     def loadQNetwork(self):
 
@@ -417,13 +475,30 @@ class PyImpUI(QWidget):
         self.CurrentNetwork.save_net()
 
     def clearQNetwork(self):
+        # clear the previously calculated weights and start over
         self.CurrentNetwork.clear_network()
 
     def learnQCallback(self):
 
         self.CurrentNetwork.learn_callback()
-        cur_count = int(self.numberOfSnapshots.text())
-        self.numberOfSnapshots.setText(str(cur_count+1))
+        
+        self.numberOfSnapshots.setText(str(self.CurrentNetwork.snapshot_count))
+        self.dsNumber.setText(str(self.CurrentNetwork.snapshot_count))
+
+        # Create the buttons in the edit snapshots screen 
+        s_button = QPushButton("Remove Snapshot %s"%self.CurrentNetwork.snapshot_count)
+        s_button.resize(140,20)
+        s_button.setObjectName("Dataset%d"%self.CurrentNetwork.snapshot_count)
+        s_button.setStyleSheet("QWidget {background-color:#DAFDE0;}")
+        s_button.setParent(self.snapshotWindow)
+
+        #This list contains the actual QWidget QPushButtons
+        print "Button Added, total length", len(self.button_list)
+        self.button_list.append(s_button)
+
+        # Update the Grid positions for the list of buttons
+        self.pos_list.append((self.CurrentNetwork.snapshot_count/3,self.CurrentNetwork.snapshot_count%3))
+        print self.pos_list
 
         if self.CurrentNetwork.learning == 1:
             self.getDataButton.setDown(1)
@@ -436,83 +511,60 @@ class PyImpUI(QWidget):
     def trainQCallback(self):
         self.CurrentNetwork.train_callback()
 
-    def computeQCallback(self):
-        print "Processing Output Now"
-        self.CurrentNetwork.compute_callback()
+    def computeQCallback(self,pressed):
 
-        if self.CurrentNetwork.compute==1:
-            self.processOutputButton.setDown(1)
-            self.processOutputButton.setText("Computing Results ON")
+        if pressed: #self.processOutputButton.isChecked() == 1:
+            print "Processing Output Now"
+            self.processResultsText.setText("Computing Results is ON")
+            self.CurrentNetwork.compute = 1
+            #self.CurrentNetwork.compute_callback()
 
-        elif self.CurrentNetwork.compute ==0:
-            self.processOutputButton.setDown(0)
-            self.processOutputButton.setText("Process Results")
+        else:
+            print "Process output stopped"
+            self.processResultsText.setText("Click to Compute Results")
+            self.CurrentNetwork.compute = 0
+
 
     def openEditSnapshotsWindow(self):
 
-        self.snapshotWindow = QMainWindow()
-
         self.addtoDsButton = QPushButton("Update Dataset")
         self.addtoDsButton.setGeometry(320,350,170,40)
+        self.addtoDsButton.setStyleSheet("QWidget { background-color:#3AD76F;}")
         self.addtoDsButton.setParent(self.snapshotWindow)
         self.addtoDsButton.clicked.connect(self.updateQDataSet)
+
+        self.dsLabel = QLabel("Number of Single Sets in Database:")
+        self.dsLabel.setGeometry(30,350,270,40)
+        self.dsLabel.setParent(self.snapshotWindow)
+        
+        self.dsNumber.setGeometry(270,350,100,40)
+        self.dsNumber.setText(str(self.CurrentNetwork.snapshot_count))
+        self.dsNumber.setParent(self.snapshotWindow)
         
         self.snapshotGrid = QGridLayout()
         self.snapshotGrid.setHorizontalSpacing(10)
         self.snapshotGrid.setVerticalSpacing(10)
 
-        # Maintain a list of created widgets
-        button_list = []
-        label_list = []
-
-        #List of Grid Positions
-        pos = []
-
-        for s, val in self.CurrentNetwork.temp_ds.iteritems():
-            s_button = QPushButton("Remove")
-            s_label = QLabel("Snapshot %s"%s)
-            s_button.resize(80,20)
-            s_label.resize(80,30)
-            s_button.setObjectName("Dataset%d"%s)
-            s_label.setObjectName("LabelDataset%d"%s)
-            s_label.setParent(self.snapshotWindow)
-            s_button.setParent(self.snapshotWindow)
-
-            #These lists contain the actual QWidgets
-            button_list.append(s_button)
-            label_list.append(s_label)
-            
-            #Grid Positions
-            p = s-1
-            pos.append((p/5,p%5))
-
         #Display labels on Grid
         j = 0
-        for label in label_list:
-            label.setParent(self.snapshotWindow)
-            label.setAlignment(Qt.AlignCenter)
-            self.snapshotGrid.addWidget(label,pos[j][0],pos[j][1],Qt.AlignCenter)
-            label.move((pos[j][1])*(label.width()+5)+10,(pos[j][0])*(label.height()+10)+10)
+        for button in self.button_list:
+            button.setParent(self.snapshotWindow)
+            self.snapshotGrid.addWidget(button,self.pos_list[j][0],self.pos_list[j][1],Qt.AlignCenter)
+            button.move((self.pos_list[j][1])*(button.width()+5)+10,(self.pos_list[j][0])*(button.height()+10)+10)
+            button.clicked.connect(self.removeTempDataSet)
             j = j+1
         
-        #Display buttons on Grid
-        k = 0
-        for button in button_list:
-            button.setParent(self.snapshotWindow)
-            self.snapshotGrid.addWidget(button,pos[k][0]+1,pos[k][1],Qt.AlignCenter)
-            button.move((pos[k][1])*(button.width()+5)+10,(pos[k][0])*(button.height()+20)+35)
-            button.clicked.connect(self.removeTempDataSet)
-            k = k+1
-
         self.snapshotWindow.setLayout(self.snapshotGrid)
-        self.snapshotWindow.setGeometry(300,200,500,400)
+        self.snapshotWindow.setGeometry(300,200,550,400)
         self.snapshotWindow.setWindowTitle("Edit Existing Snapshots")
         self.snapshotWindow.show()
     
     def updateQDataSet(self):
         self.CurrentNetwork.update_ds()
+        self.dsNumber.setText(str(self.CurrentNetwork.snapshot_count))
 
     def removeTempDataSet(self):
+
         sender = self.sender()
         sender_name = sender.objectName()
         sender_id = sender_name.split("Dataset")
@@ -522,60 +574,108 @@ class PyImpUI(QWidget):
         self.CurrentNetwork.remove_tempds(sender_id)
         print "Number of Items", self.snapshotGrid.count(), range(1,self.snapshotGrid.count()+1)
 
-        for i in range(1,self.snapshotGrid.count()+1):
+        sender.setParent(None)
+        for button in sorted(self.button_list):
+            if button.objectName() == sender.objectName():
+                print "Found button to remove"
+                self.button_list.remove(button)
 
-            b = self.snapshotGrid.takeAt(i)
-            b_widget = b.widget()
-            print b_widget
-
-            if b_widget.objectName() == str(sender_id): 
-
-                b.widget().setParent(None)
-                b.widget().deleteLater()
-
+        self.dsNumber.setText(str(self.CurrentNetwork.snapshot_count))
+        self.numberOfSnapshots.setText(str(self.CurrentNetwork.snapshot_count))
         self.snapshotWindow.update()
-
-        # b_label = self.snapshotWindow.findChild(QLabel,"LabelDataset%d"%sender_id)
 
     ############################################## Graph Drawing Methods Here #####################################################
 
     def paintEvent(self, event):
         self.qp = QPainter()
         self.qp.begin(self)
-        self.drawBars(self.qp)
-        self.qp.end()
+        self.qp.setRenderHint(QPainter.Antialiasing)
+        self.paintSignals()
+        self.qp.end()        
 
-    def drawBars(self, event):
+    # # Paint a single bar as part of a bar-graph
+    def paintBar(self,x,y,barwidth,barheight):
+        brush = QBrush(QColor("#9D0D02"),Qt.SolidPattern)
+        rect = QRect(x,y,barwidth,barheight)
+        self.qp.setBrush(brush)
+        self.qp.drawRect(rect)
 
-        rect1 = QRect(self.inputPlot.x(),self.inputPlot.y(),self.inputPlot.width(), self.inputPlot.height())
-        rect2 = QRect(self.middlePlot.x(),self.middlePlot.y(),self.middlePlot.width(),self.middlePlot.height())
-        rect3 = QRect(self.outputPlot.x(),self.outputPlot.y(),self.outputPlot.width(),self.outputPlot.height())
+    # This function plots the individual signals coming into implicit mapper from both the input and the output
+    def paintSignals(self):
 
-        brush1 = QBrush(Qt.SolidPattern)
-        brush1.setStyle(Qt.Dense3Pattern)
-        brush1.setColor(QColor(255,200,0))
+        # # Overall Rectangle
+        #brush1 = QBrush(QColor("#FFDE99"),Qt.Dense3Pattern)
+        #self.qp.setBrush(brush1)
+        self.qp.drawRect(self.inputPlot.x(),self.inputPlot.y(),self.outputPlot.width()*3+20,self.outputPlot.height())
+        # self.qp.drawLine(self.inputPlot.x(),self.inputPlot.y(),self.outputPlot.x()+self.outputPlot.width(),self.outputPlot.y())
+        # self.qp.drawLine(self.inputPlot.x(),self.inputPlot.y()+self.inputPlot.height(),self.outputPlot.x()+self.outputPlot.width(),self.outputPlot.y()+self.outputPlot.height())
+        # self.qp.drawLine(self.inputPlot.x(),self.inputPlot.y(),self.inputPlot.x(),self.inputPlot.y()+self.inputPlot.height())
+        # self.qp.drawLine(self.outputPlot.x()+self.outputPlot.width(),self.outputPlot.y(),self.outputPlot.x()+self.outputPlot.width(),self.outputPlot.y()+self.outputPlot.height())
 
-        brush2 = QBrush(Qt.SolidPattern)
-        brush2.setStyle(Qt.Dense3Pattern)
-        brush2.setColor(QColor(255,150,0))
 
-        brush3 = QBrush(Qt.SolidPattern)
-        brush3.setStyle(Qt.Dense3Pattern)
-        brush3.setColor(QColor(255,180,160))
 
-        self.qp.setBrush(brush1)
-        self.qp.drawRect((rect1.adjusted(0, 0, -1, -1)))
-        
-        self.qp.setBrush(brush2)
-        self.qp.drawRect((rect2.adjusted(0, 0, -1, -1)))
-        
-        self.qp.setBrush(brush3)
-        self.qp.drawRect((rect3.adjusted(0, 0, -1, -1)))
+        # Input Plot Background
+        # self.inputRect = QRect(self.inputPlot.x(),self.inputPlot.y(),self.inputPlot.width(), self.inputPlot.height())
+        #brush1 = QBrush(QColor("#FFDE99"),Qt.Dense3Pattern)
+        #self.qp.setBrush(brush1)
+        #self.qp.drawRect(20,65,300,220)
+        #self.qp.drawRect(330,15,490,180)
 
-        # scene = QGraphicsScene()
-        # GraphicsView.setScene(scene)
-        # pen = QPen(Qt.black,2)
-        # scene.addLine(0,0,200,100,pen)
+        # # Middle Plot Background
+        # self.middleRect = QRect(self.middlePlot.x(),self.middlePlot.y(),self.middlePlot.width(),self.middlePlot.height())
+        # brush = QBrush(QColor("#FFDE99"),Qt.Dense3Pattern)
+        # self.qp.setBrush(brush)
+        # self.qp.drawRect(self.middleRect)
+
+        # # Output Plot Background
+        # self.outputRect = QRect(self.outputPlot.x(),self.outputPlot.y(),self.outputPlot.width(),self.outputPlot.height())
+        # brush2 = QBrush(QColor("#FFDE99"),Qt.Dense3Pattern)
+        # self.qp.setBrush(brush2)
+        # self.qp.drawRect(self.outputRect)
+
+        # Input Bars
+        if len(self.CurrentNetwork.data_input.keys())>1:
+            barwidth_in = float(self.inputPlot.width())/len(self.CurrentNetwork.data_input.keys())-5
+        else: 
+            barwidth_in = 1
+        cnt = 0
+        for inputsig, sigvalue in sorted(self.CurrentNetwork.data_input.iteritems()):
+            #print "input rectangle %s"%inputsig, sigvalue
+            sigmax = 1
+            if (sigvalue > sigmax): 
+                sigmax = sigvalue
+
+            sigvalue = (sigvalue/sigmax)
+            self.paintBar(self.inputPlot.x()+10+cnt*barwidth_in,self.inputPlot.y() + self.inputPlot.height(),barwidth_in,(-1)*abs(sigvalue*self.inputPlot.height()))
+            cnt = cnt+1
+
+        # Output Bars
+        if len(self.CurrentNetwork.data_output.keys())>1:
+            barwidth_out = self.outputPlot.width()/len(self.CurrentNetwork.data_output.keys())-5
+        else: 
+            barwidth_out = 1
+        cnt2 = 0
+        for outputsig, outvalue in sorted(self.CurrentNetwork.data_output.iteritems()):
+            #print "output rectangle %s"%outputsig, outvalue
+            sigmax2 = 1
+            if (outvalue > sigmax2): 
+                sigmax2 = outvalue
+            
+            outvalue = (outvalue/sigmax2)
+            self.paintBar(self.outputPlot.x()+10+cnt2*barwidth_out,self.outputPlot.y() + self.outputPlot.height(),barwidth_out,(-1)*abs(outvalue*self.outputPlot.height()))
+            cnt2 = cnt2+1
+
+        # Middle Bars
+        if len(self.CurrentNetwork.data_middle.keys())>=1: 
+            barwidth_mid = self.middlePlot.width()/len(self.CurrentNetwork.data_middle.keys())-5
+            cnt3 = 0 
+            for midsig, midval in sorted(self.CurrentNetwork.data_middle.iteritems()):
+                #print "output rectangle %s"%outputsig, outvalue
+                # if (midval > sigmax2): 
+                #     sigmax2 = outvalue
+                # outvalue = (outvalue/sigmax2)
+                self.paintBar(self.middlePlot.x()+10+cnt3*barwidth_mid,self.middlePlot.y() + self.middlePlot.height(),barwidth_mid,(-1)*abs(midval))
+                cnt3 = cnt3+1
 
 ####################################################################################################################################################
 ####################################################################################################################################################
