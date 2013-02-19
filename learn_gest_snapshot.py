@@ -196,7 +196,7 @@ class PyImpNetwork():
         epoch_count = 0
         while epoch_count < 1000:
             epoch_count += 10
-            self.trainer.trainUntilConvergence(dataset=self.ds, maxEpochs=10)
+            self.trainer.trainUntilConvergence(dataset=self.ds, maxEpochs = 10)
             networkwriter.NetworkWriter.writeToFile(self.net,'autosave.network')
         
         print 'MSE after', self.trainer.testOnData(self.ds, verbose=True)
@@ -540,6 +540,10 @@ class PyImpUI(QWidget):
         self.dsNumber.setGeometry(270,350,100,40)
         self.dsNumber.setText(str(self.CurrentNetwork.snapshot_count))
         self.dsNumber.setParent(self.snapshotWindow)
+        
+        
+
+
         
         self.snapshotGrid = QGridLayout()
         self.snapshotGrid.setHorizontalSpacing(10)
