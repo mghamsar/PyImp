@@ -7,7 +7,8 @@ from pybrain.supervised.trainers import BackpropTrainer
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.datasets import SupervisedDataSet
 from pybrain.structure.modules import SigmoidLayer
-from pybrain.tools.xml import networkwriter
+from pybrain.tools.customxml import networkwriter
+#from pybrain.tools.xml import networkwriter
 
 import PySide
 from PySide.QtCore import *
@@ -46,7 +47,8 @@ class PyImpNetwork():
         self.temp_ds = {}
         self.snapshot_count = 0
 
-        self.learnMapperDevice = mapper.device("Implicit_LearnMapper",9002)
+        self.learnMapperDevice = mapper.device("Implicit_LearnMapper",9000)
+        #self.learnMapperDevice = mapper.device("Implicit_LearnMapper")
 
     # mapper signal handler (updates self.data_input[sig_indx]=new_float_value)
     def h(self,sig, f):
@@ -82,7 +84,7 @@ class PyImpNetwork():
     def createMapperInputs(self,n_inputs):
         #create mapper signals (inputs)
         for l_num in range(n_inputs):
-            self.l_inputs[l_num] = self.learnMapperDevice.add_input("/in%d"%l_num, 1, 'f',None,0,1.0, self.h)
+            self.l_inputs[l_num] = self.learnMapperDevice.add_input("/in%d"%l_num,'f', self.h, None, 0.0, 1.0)
             print ("creating input", "/in"+str(l_num))
 
         # Set initial Data Input values for Network to 0
@@ -92,8 +94,8 @@ class PyImpNetwork():
     def createMapperOutputs(self,n_outputs):
         #create mapper signals (n_outputs)
         for l_num in range(n_outputs):
-            self.l_outputs[l_num] = self.learnMapperDevice.add_output("/out%d"%l_num, 1, 'f',None,0.0,1.0)
-            self.l_outputs[l_num].set_query_callback(self.h)
+            self.l_outputs[l_num] = self.learnMapperDevice.add_output("/out%d"%l_num,'f', None, 0.0, 1.0)
+            #self.l_outputs[l_num].set_query_callback(self.h)
             print ("creating output","/out"+str(l_num))
         
         # Set initial Data Output values for Network to 0
@@ -212,7 +214,8 @@ class PyImpNetwork():
         else: 
             # Update the Output: Get Value from the output by sending a query request
             for index in range(self.num_outputs):
-                self.l_outputs[index].query_remote()
+                pass
+                #self.l_outputs[index].query_remote()
 
     def update_ds(self):
         if self.ds != 0:
@@ -287,6 +290,7 @@ class PyImpUI(QWidget):
         self.middlePlot.hide()
 
         self.midLabel = self.findChild(QLabel,"midlabel")
+        print self.midLabel
         self.midLabel.hide()
 
         self.processResultsText = self.findChild(QLabel, "processResultsText")
