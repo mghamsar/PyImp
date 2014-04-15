@@ -19,7 +19,6 @@ from PySide.QtUiTools import *
 class PyImpNetwork():
 
     def __init__(self):
-        
         #flags for program learning states
         self.learning = 0
         self.compute = 0
@@ -226,14 +225,14 @@ class PyImpNetwork():
 
 ####################################################################################################################################
 
-class PyImpUI(QWidget):
+class pyimp_ui(QWidget):
     
-    def __init__(self):
-        super(PyImpUI, self).__init__()
-        self.CurrentNetwork = PyImpNetwork()
+    def __init__(self,training_network):
+        super(pyimp_ui, self).__init__()
+        
+        self.current_network = training_network
 
-        # Maintain a list of created widgets for the database remove buttons and the corresponding label
-        # To appear in the edit snapshots window
+        # Maintain a list of created widgets for the remove buttons
         self.button_list = []
 
         #Create a list of Grid Positions for the Edit Snapshots Window
@@ -249,7 +248,7 @@ class PyImpUI(QWidget):
         
     def initUI(self):
 
-        QApplication.setStyle(QStyleFactory.create('Cleanlooks'))
+        self.setStyle(QStyleFactory.create('Cleanlooks'))
 
         #Load UI created in QT Designer
         self.loadCustomWidget("PyImpMainWindowSnapShot.ui")
@@ -316,8 +315,8 @@ class PyImpUI(QWidget):
         self.show()
 
     def QUpdate(self):
-        self.CurrentNetwork.learnMapperDevice.poll(0)
-        self.CurrentNetwork.update()
+        self.current_network.learnMapperDevice.poll(0)
+        self.current_network.update()
         self.update()
 
     def loadCustomWidget(self,UIfile):
@@ -371,7 +370,7 @@ class PyImpUI(QWidget):
         self.layoutTop.addWidget(self.chooseNSlidersLabel)
 
         self.layoutSliders = QVBoxLayout()
-        self.layoutSliders.setSpacing(5)
+        self.layoutSliders.secontSpacing(5)
         self.layoutSliders.addLayout(self.layoutTop)
 
         self.chooseNSliders.textChanged.connect(self.setNumQSliders)
@@ -413,7 +412,7 @@ class PyImpUI(QWidget):
             sliders[s_index].setParent(self.slidersWindow)
             sliders[s_index].valueChanged.connect(self.getSliderValue)
             sliders[s_index].setSliderPosition(5)
-            self.CurrentNetwork.data_middle["Slider%s"%s_index] = 5
+            self.current_network.data_middle["Slider%s"%s_index] = 5
 
             self.layoutSliders.addWidget(sliders[s_index])
 
@@ -424,8 +423,8 @@ class PyImpUI(QWidget):
         sender = self.sender()
         sender_name = sender.objectName()
 
-        self.CurrentNetwork.data_middle[sender_name] = sender.value()
-        #print "Middle Slider Values", self.CurrentNetwork.data_middle.values()
+        self.current_network.data_middle[sender_name] = sender.value()
+        #print "Middle Slider Values", self.current_network.data_middle.values()
 
     def loadQDataset(self):
 
@@ -437,7 +436,7 @@ class PyImpUI(QWidget):
         loadDialog.show()
 
         filename = loadDialog.getOpenFileName()
-        self.CurrentNetwork.load_dataset(filename)
+        self.current_network.load_dataset(filename)
 
     def saveQDataset(self):
 
@@ -449,11 +448,11 @@ class PyImpUI(QWidget):
         saveDialog.show()
 
         filename = saveDialog.getSaveFileName()
-        PyImpNetwork.save_dataset(self.CurrentNetwork,filename)
+        PyImpNetwork.save_dataset(self.current_network,filename)
     
     def clearQDataSet(self):
-        self.CurrentNetwork.clear_dataset()
-        self.numberOfSnapshots.setText(str(len(self.CurrentNetwork.temp_ds.keys())))
+        self.current_network.clear_dataset()
+        self.numberOfSnapshots.setText(str(len(self.current_network.temp_ds.keys())))
 
     def loadQNetwork(self):
 
@@ -465,7 +464,7 @@ class PyImpUI(QWidget):
         loadDialog.show()
 
         filename = loadDialog.getOpenFileName()
-        self.CurrentNetwork.load_dataset()
+        self.current_network.load_dataset()
 
     def saveQNetwork(self):
         # Create Dialog to save the file in directory
@@ -476,23 +475,23 @@ class PyImpUI(QWidget):
         saveDialog.show()
 
         filename = saveDialog.getSaveFileName()
-        self.CurrentNetwork.save_net()
+        self.current_network.save_net()
 
     def clearQNetwork(self):
         # clear the previously calculated weights and start over
-        self.CurrentNetwork.clear_network()
+        self.current_network.clear_network()
 
     def learnQCallback(self):
 
-        self.CurrentNetwork.learn_callback()
+        self.current_network.learn_callback()
         
-        self.numberOfSnapshots.setText(str(self.CurrentNetwork.snapshot_count))
-        self.dsNumber.setText(str(self.CurrentNetwork.snapshot_count))
+        self.numberOfSnapshots.setText(str(self.current_network.snapshot_count))
+        self.dsNumber.setText(str(self.current_network.snapshot_count))
 
         # Create the buttons in the edit snapshots screen 
-        s_button = QPushButton("Remove Snapshot %s"%self.CurrentNetwork.snapshot_count)
+        s_button = QPushButton("Remove Snapshot %s"%self.current_network.snapshot_count)
         s_button.resize(140,20)
-        s_button.setObjectName("Dataset%d"%self.CurrentNetwork.snapshot_count)
+        s_button.setObjectName("Dataset%d"%self.current_network.snapshot_count)
         s_button.setStyleSheet("QWidget {background-color:#DAFDE0;}")
         s_button.setParent(self.snapshotWindow)
 
@@ -501,32 +500,32 @@ class PyImpUI(QWidget):
         self.button_list.append(s_button)
 
         # Update the Grid positions for the list of buttons
-        self.pos_list.append((self.CurrentNetwork.snapshot_count/3,self.CurrentNetwork.snapshot_count%3))
+        self.pos_list.append((self.current_network.snapshot_count/3,self.current_network.snapshot_count%3))
         print self.pos_list
 
-        if self.CurrentNetwork.learning == 1:
+        if self.current_network.learning == 1:
             self.getDataButton.setDown(1)
             self.getDataButton.setText("Taking Snapshot")
 
-        elif self.CurrentNetwork.learning == 0:
+        elif self.current_network.learning == 0:
             self.getDataButton.setDown(0)
             self.getDataButton.setText("Snapshot")
 
     def trainQCallback(self):
-        self.CurrentNetwork.train_callback()
+        self.current_network.train_callback()
 
     def computeQCallback(self,pressed):
 
         if pressed: #self.processOutputButton.isChecked() == 1:
             print "Processing Output Now"
             self.processResultsText.setText("Computing Results is ON")
-            self.CurrentNetwork.compute = 1
-            #self.CurrentNetwork.compute_callback()
+            self.current_network.compute = 1
+            #self.current_network.compute_callback()
 
         else:
             print "Process output stopped"
             self.processResultsText.setText("Click to Compute Results")
-            self.CurrentNetwork.compute = 0
+            self.current_network.compute = 0
 
 
     def openEditSnapshotsWindow(self):
@@ -542,12 +541,8 @@ class PyImpUI(QWidget):
         self.dsLabel.setParent(self.snapshotWindow)
         
         self.dsNumber.setGeometry(270,350,100,40)
-        self.dsNumber.setText(str(self.CurrentNetwork.snapshot_count))
+        self.dsNumber.setText(str(self.current_network.snapshot_count))
         self.dsNumber.setParent(self.snapshotWindow)
-        
-        
-
-
         
         self.snapshotGrid = QGridLayout()
         self.snapshotGrid.setHorizontalSpacing(10)
@@ -568,8 +563,8 @@ class PyImpUI(QWidget):
         self.snapshotWindow.show()
     
     def updateQDataSet(self):
-        self.CurrentNetwork.update_ds()
-        self.dsNumber.setText(str(self.CurrentNetwork.snapshot_count))
+        self.current_network.update_ds()
+        self.dsNumber.setText(str(self.current_network.snapshot_count))
 
     def removeTempDataSet(self):
 
@@ -579,7 +574,7 @@ class PyImpUI(QWidget):
         sender_id = int(sender_id[1])
         print "Sender ID", sender_id
         
-        self.CurrentNetwork.remove_tempds(sender_id)
+        self.current_network.remove_tempds(sender_id)
         print "Number of Items", self.snapshotGrid.count(), range(1,self.snapshotGrid.count()+1)
 
         sender.setParent(None)
@@ -588,8 +583,8 @@ class PyImpUI(QWidget):
                 print "Found button to remove"
                 self.button_list.remove(button)
 
-        self.dsNumber.setText(str(self.CurrentNetwork.snapshot_count))
-        self.numberOfSnapshots.setText(str(self.CurrentNetwork.snapshot_count))
+        self.dsNumber.setText(str(self.current_network.snapshot_count))
+        self.numberOfSnapshots.setText(str(self.current_network.snapshot_count))
         self.snapshotWindow.update()
 
     ############################################## Graph Drawing Methods Here #####################################################
@@ -620,8 +615,6 @@ class PyImpUI(QWidget):
         # self.qp.drawLine(self.inputPlot.x(),self.inputPlot.y(),self.inputPlot.x(),self.inputPlot.y()+self.inputPlot.height())
         # self.qp.drawLine(self.outputPlot.x()+self.outputPlot.width(),self.outputPlot.y(),self.outputPlot.x()+self.outputPlot.width(),self.outputPlot.y()+self.outputPlot.height())
 
-
-
         # Input Plot Background
         # self.inputRect = QRect(self.inputPlot.x(),self.inputPlot.y(),self.inputPlot.width(), self.inputPlot.height())
         #brush1 = QBrush(QColor("#FFDE99"),Qt.Dense3Pattern)
@@ -632,7 +625,7 @@ class PyImpUI(QWidget):
         # # Middle Plot Background
         # self.middleRect = QRect(self.middlePlot.x(),self.middlePlot.y(),self.middlePlot.width(),self.middlePlot.height())
         # brush = QBrush(QColor("#FFDE99"),Qt.Dense3Pattern)
-        # self.qp.setBrush(brush)
+        # self.qp.setBrush(brusneth)
         # self.qp.drawRect(self.middleRect)
 
         # # Output Plot Background
@@ -642,12 +635,12 @@ class PyImpUI(QWidget):
         # self.qp.drawRect(self.outputRect)
 
         # Input Bars
-        if len(self.CurrentNetwork.data_input.keys())>1:
-            barwidth_in = float(self.inputPlot.width())/len(self.CurrentNetwork.data_input.keys())-5
+        if len(self.current_network.data_input.keys())>1:
+            barwidth_in = float(self.inputPlot.width())/len(self.current_network.data_input.keys())-5
         else: 
             barwidth_in = 1
         cnt = 0
-        for inputsig, sigvalue in sorted(self.CurrentNetwork.data_input.iteritems()):
+        for inputsig, sigvalue in sorted(self.current_network.data_input.iteritems()):
             #print "input rectangle %s"%inputsig, sigvalue
             sigmax = 1
             if (sigvalue > sigmax): 
@@ -658,12 +651,12 @@ class PyImpUI(QWidget):
             cnt = cnt+1
 
         # Output Bars
-        if len(self.CurrentNetwork.data_output.keys())>1:
-            barwidth_out = self.outputPlot.width()/len(self.CurrentNetwork.data_output.keys())-5
+        if len(self.current_network.data_output.keys())>1:
+            barwidth_out = self.outputPlot.width()/len(self.current_network.data_output.keys())-5
         else: 
             barwidth_out = 1
         cnt2 = 0
-        for outputsig, outvalue in sorted(self.CurrentNetwork.data_output.iteritems()):
+        for outputsig, outvalue in sorted(self.current_network.data_output.iteritems()):
             #print "output rectangle %s"%outputsig, outvalue
             sigmax2 = 1
             if (outvalue > sigmax2): 
@@ -674,10 +667,10 @@ class PyImpUI(QWidget):
             cnt2 = cnt2+1
 
         # Middle Bars
-        if len(self.CurrentNetwork.data_middle.keys())>=1: 
-            barwidth_mid = self.middlePlot.width()/len(self.CurrentNetwork.data_middle.keys())-5
+        if len(self.current_network.data_middle.keys())>=1: 
+            barwidth_mid = self.middlePlot.width()/len(self.current_network.data_middle.keys())-5
             cnt3 = 0 
-            for midsig, midval in sorted(self.CurrentNetwork.data_middle.iteritems()):
+            for midsig, midval in sorted(self.current_network.data_middle.iteritems()):
                 #print "output rectangle %s"%outputsig, outvalue
                 # if (midval > sigmax2): 
                 #     sigmax2 = outvalue
@@ -685,31 +678,30 @@ class PyImpUI(QWidget):
                 self.paintBar(self.middlePlot.x()+10+cnt3*barwidth_mid,self.middlePlot.y() + self.middlePlot.height(),barwidth_mid,(-1)*abs(midval))
                 cnt3 = cnt3+1
 
-####################################################################################################################################################
-####################################################################################################################################################
-
 def main():
-
     # Run GUI Application
+    import sys
+    print sys.argv
     app = QApplication(sys.argv)
-    ex = PyImpUI()
+    net = PyImpNetwork()
+    ex = pyimp_ui(net)
 
     #Obtain Initial Number of Inputs and for Device
     if (len(sys.argv) == 4):
         try:
-            ex.CurrentNetwork.setNumInputs(int(sys.argv[1]))
-            ex.CurrentNetwork.setNumHiddenNodes(int(sys.argv[2]))
-            ex.CurrentNetwork.setNumeOutputs(int(sys.argv[3]))
+            net.setNumInputs(int(sys.argv[1]))
+            net.setNumHiddenNodes(int(sys.argv[2]))
+            net.setNumeOutputs(int(sys.argv[3]))
         except:
             print ("Bad Input Arguments (#inputs, #hidden nodes, #outputs)")
             sys.exit(1)
 
     elif (len(sys.argv) == 5):
         try:
-            ex.CurrentNetwork.setNumInputs(int(sys.argv[1]))
-            ex.CurrentNetwork.setNumHiddenNodes(int(sys.argv[2]))
-            ex.CurrentNetwork.setNumeOutputs(int(sys.argv[3]))
-            ex.CurrentNetwork.setReccurentFlag(int(sys.argv[4]))
+            net.setNumInputs(int(sys.argv[1]))
+            net.setNumHiddenNodes(int(sys.argv[2]))
+            net.setNumeOutputs(int(sys.argv[3]))
+            net.setReccurentFlag(int(sys.argv[4]))
         except:
             print ("Bad Input Arguments (#inputs, #hidden nodes, #outputs, R/F == Recurrent/Feedforward Network)")
             sys.exit(1)
@@ -719,25 +711,15 @@ def main():
             sys.exit(1)
 
     else:
-        ex.CurrentNetwork.setNumInputs(8)
-        ex.CurrentNetwork.setNumHiddenNodes(5)
-        ex.CurrentNetwork.setNumeOutputs(8)
+        net.setNumInputs(8)
+        net.setNumHiddenNodes(5)
+        net.setNumeOutputs(8)
         print "No Input Arguments, setting defaults - 8 5 8"       
 
-    print ("Input Arguments (#inputs, #hidden nodes, #outputs): " + str(ex.CurrentNetwork.num_inputs) + ", " + str(ex.CurrentNetwork.num_hidden) + ", " + str(ex.CurrentNetwork.num_outputs))        
+    print ("Input Arguments (#inputs, #hidden nodes, #outputs): " + str(net.num_inputs) + ", " + str(net.num_hidden) + ", " + str(net.num_outputs))        
     
-    ex.CurrentNetwork.createMapperInputs(ex.CurrentNetwork.num_inputs)
-    ex.CurrentNetwork.createMapperOutputs(ex.CurrentNetwork.num_outputs)
-    ex.CurrentNetwork.createANN(ex.CurrentNetwork.num_inputs,ex.CurrentNetwork.num_hidden,ex.CurrentNetwork.num_outputs)
+    net.createMapperInputs(net.num_inputs)
+    net.createMapperOutputs(net.num_outputs)
+    net.createANN(net.num_inputs,net.num_hidden,net.num_outputs)
 
     sys.exit(app.exec_())
-
-##################################################################################################################################################
-# Run Main Function
-if __name__ == '__main__':
-    main()
-
-
-
-
-
