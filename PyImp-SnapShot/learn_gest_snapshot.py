@@ -84,8 +84,8 @@ class PyImpNetwork():
     def createMapperInputs(self,n_inputs):
         #create mapper signals (inputs)
         for l_num in range(n_inputs):
-            self.l_inputs[l_num] = self.learnMapperDevice.add_input("/in%d"%l_num,'f', self.h, None, 0.0, 1.0)
             print ("creating input", "/in"+str(l_num))
+            self.l_inputs[l_num] = self.learnMapperDevice.add_input("/in"+str(l_num),1,'f', "Hz", 0.0, 1.0,self.h)
 
         # Set initial Data Input values for Network to 0
         for s_index in range(n_inputs):
@@ -94,7 +94,7 @@ class PyImpNetwork():
     def createMapperOutputs(self,n_outputs):
         #create mapper signals (n_outputs)
         for l_num in range(n_outputs):
-            self.l_outputs[l_num] = self.learnMapperDevice.add_output("/out%d"%l_num,'f', None, 0.0, 1.0)
+            self.l_outputs[l_num] = self.learnMapperDevice.add_output("/out%d"%l_num,1,'f', None, 0.0, 1.0)
             #self.l_outputs[l_num].set_query_callback(self.h)
             print ("creating output","/out"+str(l_num))
         
