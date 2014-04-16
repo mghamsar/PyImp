@@ -2,12 +2,11 @@ import sys
 import mapper
 import time
 
-import PySide
-from PySide.QtCore import *
-from PySide.QtGui import *
-from PySide.QtWebKit import *
-from PySide.QtUiTools import *
-from learn_gest_network import PyImpNetwork
+from PySide import QtCore, QtGui
+from PySide.QtGui import QApplication, QWidget, QPainter, QBrush, QColor
+from PySide.QtCore import QRect
+from PySide.QtUiTools import QUiLoader
+from gestnetwork import PyImpNetwork
 
 class pyimp_ui(QWidget):
     
@@ -22,17 +21,17 @@ class pyimp_ui(QWidget):
         #Create a list of Grid Positions for the Edit Snapshots Window
         self.pos_list = []
 
-        self.dsNumber = QLabel()
+        self.dsNumber = QtGui.QLabel()
 
         self.initUI()
 
-        self.timer = QTimer(self)
+        self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self.QUpdate) 
         self.timer.start(50)
         
     def initUI(self):
 
-        self.setStyle(QStyleFactory.create('Cleanlooks'))
+        self.setStyle(QtGui.QStyleFactory.create('Cleanlooks'))
 
         #Load UI created in QT Designer
         self.loadCustomWidget("PyImpMainWindowSnapShot.ui")
@@ -63,7 +62,7 @@ class pyimp_ui(QWidget):
 
         self.chooseClassifier = self.findChild(QWidget,"chooseClassifierComboBox")
 
-        self.numberOfSnapshots = self.findChild(QLabel,"noSnapshots")
+        self.numberOfSnapshots = self.findChild(QtGui.QLabel,"noSnapshots")
         self.editSnapshots = self.findChild(QWidget,"editSnapshots")
 
         #Graphics Views for the Signals
@@ -72,11 +71,11 @@ class pyimp_ui(QWidget):
         self.middlePlot = self.findChild(QWidget,"middleSignals")
         self.middlePlot.hide()
 
-        self.midLabel = self.findChild(QLabel,"midlabel")
+        self.midLabel = self.findChild(QtGui.QLabel,"midlabel")
         print self.midLabel
         self.midLabel.hide()
 
-        self.processResultsText = self.findChild(QLabel, "processResultsText")
+        self.processResultsText = self.findChild(QtGui.QLabel, "processResultsText")
         
         # Activate the Buttons in the Main Interface
         self.loadDataButton.clicked.connect(self.loadQDataset)
@@ -92,9 +91,9 @@ class pyimp_ui(QWidget):
 
         self.middleLayerEnable.toggle()
         self.middleLayerEnable.stateChanged.connect(self.enableSliders)
-        self.middleLayerEnable.setCheckState(Qt.Unchecked)
+        self.middleLayerEnable.setCheckState(QtCore.Qt.Unchecked)
         
-        self.snapshotWindow = QMainWindow()
+        self.snapshotWindow = QtGui.QMainWindow()
 
         self.show()
 
@@ -105,8 +104,8 @@ class pyimp_ui(QWidget):
 
     def loadCustomWidget(self,UIfile):
         loader = QUiLoader()
-        file_ui = QFile(UIfile)
-        file_ui.open(QFile.ReadOnly)
+        file_ui = QtCore.QFile(UIfile)
+        file_ui.open(QtCore.QFile.ReadOnly)
         self.mainWidget = loader.load(file_ui, self)
         self.setWindowTitle("Implicit Mapper")   
         file_ui.close()
@@ -145,7 +144,7 @@ class pyimp_ui(QWidget):
         self.layoutNo.addWidget(self.chooseNSliders)
         self.layoutNo.addWidget(self.setButton)
 
-        self.chooseNSlidersLabel = QLabel("Set The Number of Middle Sliders")
+        self.chooseNSlidersLabel = QtGui.QLabel("Set The Number of Middle Sliders")
         self.chooseNSlidersLabel.setGeometry(10,10,300,25)
         self.chooseNSlidersLabel.setParent(self.slidersWindow)
 
@@ -320,7 +319,7 @@ class pyimp_ui(QWidget):
         self.addtoDsButton.setParent(self.snapshotWindow)
         self.addtoDsButton.clicked.connect(self.updateQDataSet)
 
-        self.dsLabel = QLabel("Number of Single Sets in Database:")
+        self.dsLabel = QtGui.QLabel("Number of Single Sets in Database:")
         self.dsLabel.setGeometry(30,350,270,40)
         self.dsLabel.setParent(self.snapshotWindow)
         
@@ -382,7 +381,7 @@ class pyimp_ui(QWidget):
 
     # # Paint a single bar as part of a bar-graph
     def paintBar(self,x,y,barwidth,barheight):
-        brush = QBrush(QColor("#9D0D02"),Qt.SolidPattern)
+        brush = QBrush(QColor("#9D0D02"),QtCore.Qt.SolidPattern)
         rect = QRect(x,y,barwidth,barheight)
         self.qp.setBrush(brush)
         self.qp.drawRect(rect)
